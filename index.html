@@ -4,610 +4,464 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MotoFuel — Built by a rider, for riders</title>
+<meta name="description" content="The smart motorcycle fuel tracker with voice logging, GPS ride tracking and live fuel prices. Built in Iceland.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --orange: #e05c00;
-    --orange-light: #ff7a20;
-    --orange-dim: rgba(224,92,0,0.15);
-    --dark: #0e0e0e;
-    --dark-2: #161616;
-    --dark-3: #1e1e1e;
-    --dark-4: #2a2a2a;
-    --text: #f0ece4;
-    --text-dim: #888;
-    --text-muted: #444;
-    --green: #4caf82;
-    --blue: #4a9eff;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  html { scroll-behavior: smooth; }
-
-  body {
-    background: var(--dark);
-    color: var(--text);
-    font-family: 'Barlow', sans-serif;
-    font-size: 17px;
-    line-height: 1.6;
-    overflow-x: hidden;
-  }
-
-  /* ── NOISE TEXTURE ── */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 1000;
-    opacity: 0.4;
-  }
-
-  /* ── NAV ── */
-  nav {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 100;
-    padding: 20px 40px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: linear-gradient(to bottom, rgba(14,14,14,0.95), transparent);
-    backdrop-filter: blur(8px);
-  }
-
-  .nav-logo {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 900;
-    font-size: 24px;
-    color: var(--orange);
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    text-decoration: none;
-  }
-
-  .nav-links {
-    display: flex;
-    gap: 32px;
-    list-style: none;
-  }
-
-  .nav-links a {
-    color: var(--text-dim);
-    text-decoration: none;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    transition: color 0.2s;
-  }
-
-  .nav-links a:hover { color: var(--text); }
-
-  /* ── HERO ── */
-  .hero {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 120px 40px 80px;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .hero-bg {
-    position: absolute;
-    inset: 0;
-    background:
-      radial-gradient(ellipse 80% 60% at 50% 100%, rgba(224,92,0,0.12) 0%, transparent 70%),
-      radial-gradient(ellipse 40% 40% at 20% 20%, rgba(224,92,0,0.06) 0%, transparent 60%);
-  }
-
-  .hero-eyebrow {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 4px;
-    text-transform: uppercase;
-    color: var(--orange);
-    margin-bottom: 24px;
-    opacity: 0;
-    animation: fadeUp 0.8s 0.2s forwards;
-  }
-
-  .hero-title {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: clamp(72px, 12vw, 140px);
-    font-weight: 900;
-    line-height: 0.9;
-    letter-spacing: -2px;
-    text-transform: uppercase;
-    margin-bottom: 8px;
-    opacity: 0;
-    animation: fadeUp 0.8s 0.3s forwards;
-  }
-
-  .hero-title span { color: var(--orange); }
-
-  .hero-subtitle {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: clamp(24px, 4vw, 40px);
-    font-weight: 600;
-    color: var(--text-dim);
-    letter-spacing: 1px;
-    margin-bottom: 32px;
-    opacity: 0;
-    animation: fadeUp 0.8s 0.4s forwards;
-  }
-
-  .hero-tagline {
-    font-size: 18px;
-    color: var(--text-dim);
-    font-style: italic;
-    margin-bottom: 48px;
-    opacity: 0;
-    animation: fadeUp 0.8s 0.5s forwards;
-  }
-
-  .hero-cta {
-    display: flex;
-    gap: 16px;
-    justify-content: center;
-    flex-wrap: wrap;
-    opacity: 0;
-    animation: fadeUp 0.8s 0.6s forwards;
-  }
-
-  .btn-primary {
-    background: var(--orange);
-    color: #fff;
-    padding: 16px 36px;
-    border-radius: 4px;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 18px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    text-decoration: none;
-    transition: background 0.2s, transform 0.1s;
-    display: inline-block;
-  }
-
-  .btn-primary:hover { background: var(--orange-light); transform: translateY(-2px); }
-
-  .btn-secondary {
-    background: transparent;
-    color: var(--text);
-    padding: 16px 36px;
-    border-radius: 4px;
-    border: 1.5px solid var(--dark-4);
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 18px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    text-decoration: none;
-    transition: border-color 0.2s, transform 0.1s;
-    display: inline-block;
-  }
-
-  .btn-secondary:hover { border-color: var(--text-dim); transform: translateY(-2px); }
-
-  .hero-scroll {
-    position: absolute;
-    bottom: 40px;
-    left: 50%;
-    transform: translateX(-50%);
-    color: var(--text-muted);
-    font-size: 12px;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    animation: bounce 2s infinite;
-  }
-
-  /* ── FEATURES ── */
-  .section {
-    padding: 100px 40px;
-    max-width: 1100px;
-    margin: 0 auto;
-  }
-
-  .section-label {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 4px;
-    text-transform: uppercase;
-    color: var(--orange);
-    margin-bottom: 16px;
-  }
-
-  .section-title {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: clamp(36px, 5vw, 60px);
-    font-weight: 800;
-    line-height: 1;
-    text-transform: uppercase;
-    margin-bottom: 20px;
-  }
-
-  .section-sub {
-    color: var(--text-dim);
-    font-size: 18px;
-    max-width: 560px;
-    margin-bottom: 60px;
-    line-height: 1.7;
-  }
-
-  /* Feature grid */
-  .features-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 2px;
-    background: var(--dark-4);
-    border: 1px solid var(--dark-4);
-    border-radius: 8px;
-    overflow: hidden;
-  }
-
-  .feature-card {
-    background: var(--dark-2);
-    padding: 32px;
-    transition: background 0.2s;
-  }
-
-  .feature-card:hover { background: var(--dark-3); }
-
-  .feature-icon {
-    font-size: 36px;
-    margin-bottom: 16px;
-    display: block;
-  }
-
-  .feature-title {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 22px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 10px;
-    color: var(--text);
-  }
-
-  .feature-text {
-    color: var(--text-dim);
-    font-size: 15px;
-    line-height: 1.6;
-  }
-
-  /* ── HANDSFREE SECTION ── */
-  .handsfree-section {
-    padding: 100px 40px;
-    background: var(--dark-2);
-    border-top: 1px solid var(--dark-4);
-    border-bottom: 1px solid var(--dark-4);
-  }
-
-  .handsfree-inner {
-    max-width: 1100px;
-    margin: 0 auto;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 80px;
-    align-items: center;
-  }
-
-  .flow-steps {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
-
-  .flow-step {
-    display: flex;
-    gap: 20px;
-    align-items: flex-start;
-    padding: 20px 0;
-    border-bottom: 1px solid var(--dark-4);
-    position: relative;
-  }
-
-  .flow-step:last-child { border-bottom: none; }
-
-  .flow-num {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 48px;
-    font-weight: 900;
-    color: var(--orange);
-    opacity: 0.3;
-    line-height: 1;
-    min-width: 48px;
-  }
-
-  .flow-content h4 {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 20px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 4px;
-  }
-
-  .flow-content p {
-    color: var(--text-dim);
-    font-size: 14px;
-    line-height: 1.5;
-  }
-
-  /* ── HALL OF FAME ── */
-  .hof-section {
-    padding: 100px 40px;
-    max-width: 1100px;
-    margin: 0 auto;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 80px;
-    align-items: center;
-  }
-
-  .hof-card {
-    background: var(--dark-2);
-    border: 1px solid var(--dark-4);
-    border-radius: 12px;
-    padding: 28px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .hof-champion {
-    background: linear-gradient(135deg, #1a1200, #2a1800);
-    border: 1.5px solid var(--orange);
-    border-radius: 10px;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .hof-champion-label {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: var(--orange);
-  }
-
-  .hof-champion-name {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 28px;
-    font-weight: 800;
-    color: var(--text);
-  }
-
-  .hof-champion-km {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 48px;
-    font-weight: 900;
-    color: var(--orange);
-    line-height: 1;
-  }
-
-  .hof-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--dark-4);
-  }
-
-  .hof-row:last-child { border-bottom: none; }
-
-  .hof-rank {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--text-muted);
-    width: 32px;
-  }
-
-  .hof-tire-name {
-    font-size: 14px;
-    font-weight: 600;
-    flex: 1;
-  }
-
-  .hof-tire-meta {
-    font-size: 12px;
-    color: var(--text-dim);
-  }
-
-  .hof-tire-km {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--text-dim);
-  }
-
-  /* ── MY MOTOFUEL ── */
-  .mymoto-section {
-    padding: 100px 40px;
-    background: var(--dark-2);
-    border-top: 1px solid var(--dark-4);
-    border-bottom: 1px solid var(--dark-4);
-    text-align: center;
-  }
-
-  .mymoto-inner {
-    max-width: 700px;
-    margin: 0 auto;
-  }
-
-  .coming-soon-badge {
-    display: inline-block;
-    background: var(--orange-dim);
-    border: 1px solid var(--orange);
-    color: var(--orange);
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    padding: 6px 16px;
-    border-radius: 100px;
-    margin-bottom: 24px;
-  }
-
-  .mymoto-features {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    margin-top: 48px;
-    text-align: left;
-  }
-
-  .mymoto-feature {
-    background: var(--dark-3);
-    border: 1px solid var(--dark-4);
-    border-radius: 8px;
-    padding: 20px;
-  }
-
-  .mymoto-feature-icon { font-size: 28px; margin-bottom: 10px; }
-
-  .mymoto-feature-title {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 18px;
-    font-weight: 700;
-    text-transform: uppercase;
-    margin-bottom: 6px;
-  }
-
-  .mymoto-feature-text {
-    font-size: 13px;
-    color: var(--text-dim);
-    line-height: 1.5;
-  }
-
-  .email-form {
-    display: flex;
-    gap: 12px;
-    margin-top: 40px;
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-
-  .email-input {
-    background: var(--dark-3);
-    border: 1px solid var(--dark-4);
-    border-radius: 4px;
-    padding: 14px 20px;
-    color: var(--text);
-    font-family: 'Barlow', sans-serif;
-    font-size: 16px;
-    width: 280px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-
-  .email-input:focus { border-color: var(--orange); }
-  .email-input::placeholder { color: var(--text-muted); }
-
-  /* ── STATS STRIP ── */
-  .stats-strip {
-    padding: 60px 40px;
-    max-width: 1100px;
-    margin: 0 auto;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 2px;
-    text-align: center;
-  }
-
-  .stat-item {
-    padding: 32px 20px;
-  }
-
-  .stat-number {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 56px;
-    font-weight: 900;
-    color: var(--orange);
-    line-height: 1;
-    margin-bottom: 8px;
-  }
-
-  .stat-label {
-    font-size: 13px;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 2px;
-  }
-
-  /* ── FOOTER ── */
-  footer {
-    border-top: 1px solid var(--dark-4);
-    padding: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 20px;
-  }
-
-  .footer-logo {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 900;
-    font-size: 20px;
-    color: var(--orange);
-    letter-spacing: 2px;
-    text-transform: uppercase;
-  }
-
-  .footer-text {
-    color: var(--text-muted);
-    font-size: 13px;
-  }
-
-  .footer-flag { font-size: 20px; }
-
-  /* ── DIVIDER ── */
-  .divider {
-    width: 60px;
-    height: 3px;
-    background: var(--orange);
-    margin-bottom: 40px;
-  }
-
-  /* ── ANIMATIONS ── */
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(24px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  @keyframes bounce {
-    0%, 100% { transform: translateX(-50%) translateY(0); }
-    50% { transform: translateX(-50%) translateY(8px); }
-  }
-
-  /* ── RESPONSIVE ── */
-  @media (max-width: 768px) {
-    nav { padding: 16px 20px; }
-    .nav-links { display: none; }
-    .hero { padding: 100px 24px 60px; }
-    .section { padding: 60px 24px; }
-    .handsfree-inner { grid-template-columns: 1fr; gap: 40px; }
-    .hof-section { grid-template-columns: 1fr; gap: 40px; padding: 60px 24px; }
-    .mymoto-features { grid-template-columns: 1fr; }
-    .stats-strip { grid-template-columns: repeat(2, 1fr); padding: 40px 24px; }
-    footer { padding: 30px 24px; flex-direction: column; text-align: center; }
-  }
+:root {
+  --orange: #e05c00;
+  --orange-dim: #b84d00;
+  --orange-glow: rgba(224,92,0,0.15);
+  --black: #0a0a0a;
+  --dark: #111111;
+  --card: #1a1a1a;
+  --card2: #222222;
+  --border: #2a2a2a;
+  --text: #f0f0f0;
+  --muted: #888888;
+  --green: #22c55e;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--black);
+  color: var(--text);
+  font-family: 'Barlow', sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* NAV */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  padding: 1rem 2rem;
+  display: flex; align-items: center; justify-content: space-between;
+  background: rgba(10,10,10,0.9);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-logo {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.4rem; font-weight: 900; letter-spacing: 0.05em;
+  color: var(--orange); text-decoration: none;
+}
+
+.nav-links { display: flex; gap: 2rem; list-style: none; }
+.nav-links a {
+  color: var(--muted); text-decoration: none; font-size: 0.9rem;
+  font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase;
+  transition: color 0.2s;
+}
+.nav-links a:hover { color: var(--text); }
+
+.nav-cta {
+  background: var(--orange); color: white;
+  padding: 0.5rem 1.2rem; border-radius: 4px;
+  text-decoration: none; font-weight: 600; font-size: 0.85rem;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  transition: background 0.2s;
+}
+.nav-cta:hover { background: var(--orange-dim); }
+
+/* HERO */
+.hero {
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center;
+  padding: 6rem 2rem 4rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(ellipse at 50% 40%, rgba(224,92,0,0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  background: rgba(224,92,0,0.1); border: 1px solid rgba(224,92,0,0.3);
+  color: var(--orange); padding: 0.4rem 1rem; border-radius: 100px;
+  font-size: 0.8rem; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; margin-bottom: 2rem;
+}
+
+.hero h1 {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: clamp(3.5rem, 10vw, 8rem);
+  font-weight: 900; line-height: 0.9;
+  letter-spacing: -0.02em;
+  margin-bottom: 1.5rem;
+}
+
+.hero h1 span { color: var(--orange); }
+
+.hero-sub {
+  font-size: clamp(1rem, 2.5vw, 1.3rem);
+  color: var(--muted); max-width: 600px;
+  margin: 0 auto 0.8rem;
+}
+
+.hero-quote {
+  font-style: italic; color: #555;
+  font-size: 0.95rem; margin-bottom: 3rem;
+}
+
+.hero-buttons {
+  display: flex; gap: 1rem; flex-wrap: wrap;
+  justify-content: center; margin-bottom: 4rem;
+}
+
+.btn-primary {
+  background: var(--orange); color: white;
+  padding: 0.9rem 2rem; border-radius: 6px;
+  text-decoration: none; font-weight: 700;
+  font-size: 1rem; letter-spacing: 0.03em;
+  transition: all 0.2s; display: inline-flex;
+  align-items: center; gap: 0.5rem;
+}
+.btn-primary:hover { background: var(--orange-dim); transform: translateY(-2px); }
+
+.btn-secondary {
+  background: transparent; color: var(--text);
+  padding: 0.9rem 2rem; border-radius: 6px;
+  text-decoration: none; font-weight: 600;
+  font-size: 1rem; border: 1px solid var(--border);
+  transition: all 0.2s;
+}
+.btn-secondary:hover { border-color: var(--orange); color: var(--orange); }
+
+.hero-stats {
+  display: flex; gap: 3rem; flex-wrap: wrap;
+  justify-content: center;
+}
+
+.stat { text-align: center; }
+.stat-number {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 2.5rem; font-weight: 900; color: var(--orange);
+  line-height: 1;
+}
+.stat-label { color: var(--muted); font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase; }
+
+/* SECTIONS */
+section { padding: 6rem 2rem; }
+.container { max-width: 1100px; margin: 0 auto; }
+
+.section-label {
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.15em;
+  text-transform: uppercase; color: var(--orange);
+  margin-bottom: 1rem;
+}
+
+.section-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 900; line-height: 1;
+  margin-bottom: 1.5rem;
+}
+
+.section-sub {
+  color: var(--muted); font-size: 1.1rem;
+  max-width: 600px; margin-bottom: 4rem;
+}
+
+/* FEATURE GRID */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.feature-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px; padding: 2rem;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.feature-card:hover { border-color: var(--orange); transform: translateY(-4px); }
+
+.feature-icon { font-size: 2rem; margin-bottom: 1rem; }
+.feature-card h3 {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.3rem; font-weight: 700;
+  margin-bottom: 0.5rem; letter-spacing: 0.02em;
+}
+.feature-card p { color: var(--muted); font-size: 0.95rem; line-height: 1.6; }
+
+.feature-new {
+  display: inline-block;
+  background: var(--orange); color: white;
+  font-size: 0.65rem; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 0.15rem 0.5rem; border-radius: 3px;
+  margin-left: 0.5rem; vertical-align: middle;
+}
+
+/* VOICE SECTION */
+.voice-section {
+  background: var(--dark);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.voice-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem; align-items: center;
+}
+
+@media (max-width: 768px) {
+  .voice-layout { grid-template-columns: 1fr; }
+  .nav-links { display: none; }
+}
+
+.voice-steps { display: flex; flex-direction: column; gap: 1.5rem; }
+
+.voice-step {
+  display: flex; gap: 1rem; align-items: flex-start;
+}
+
+.step-num {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1rem; font-weight: 900; color: var(--orange);
+  background: rgba(224,92,0,0.1); border: 1px solid rgba(224,92,0,0.2);
+  width: 2rem; height: 2rem; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.step-content h4 {
+  font-weight: 600; margin-bottom: 0.2rem;
+}
+.step-content p { color: var(--muted); font-size: 0.9rem; }
+
+/* PHONE MOCKUP */
+.phone-mockup {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px; padding: 1.5rem;
+  max-width: 280px; margin: 0 auto;
+}
+
+.phone-screen {
+  background: var(--black);
+  border-radius: 12px; padding: 1.2rem;
+  font-size: 0.85rem;
+}
+
+.phone-header {
+  display: flex; align-items: center; gap: 0.5rem;
+  margin-bottom: 1rem; padding-bottom: 0.8rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.phone-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700; font-size: 1rem;
+}
+
+.live-badge {
+  background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3);
+  color: var(--green); font-size: 0.65rem; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 0.1rem 0.4rem; border-radius: 3px;
+}
+
+.phone-row {
+  display: flex; justify-content: space-between;
+  padding: 0.4rem 0; border-bottom: 1px solid var(--border);
+  font-size: 0.8rem;
+}
+.phone-row:last-child { border-bottom: none; }
+.phone-row .label { color: var(--muted); }
+.phone-row .value { font-weight: 600; }
+.phone-row .orange { color: var(--orange); }
+.phone-row .green { color: var(--green); }
+
+/* RIDE TRACKING */
+.ride-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem; margin-top: 3rem;
+}
+
+.ride-feature {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px; padding: 1.5rem;
+  display: flex; gap: 1rem; align-items: flex-start;
+}
+
+.ride-feature-icon { font-size: 1.5rem; flex-shrink: 0; }
+.ride-feature h4 { font-weight: 600; margin-bottom: 0.3rem; font-size: 1rem; }
+.ride-feature p { color: var(--muted); font-size: 0.85rem; }
+
+/* FUEL PRICES */
+.fuel-section { background: var(--dark); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+
+.fuel-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem; margin-top: 3rem;
+}
+
+@media (max-width: 600px) {
+  .fuel-grid { grid-template-columns: 1fr; }
+}
+
+.fuel-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 2rem;
+}
+
+.fuel-card h3 {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.4rem; font-weight: 700; margin-bottom: 0.5rem;
+}
+.fuel-card p { color: var(--muted); font-size: 0.9rem; margin-bottom: 1rem; }
+
+.fuel-stations { display: flex; flex-direction: column; gap: 0.5rem; }
+
+.fuel-station {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--card2); border-radius: 6px; padding: 0.6rem 0.8rem;
+  font-size: 0.85rem;
+}
+.fuel-station .name { font-weight: 500; }
+.fuel-station .price { color: var(--orange); font-weight: 700; font-family: 'Barlow Condensed', sans-serif; font-size: 1rem; }
+.fuel-station.cheapest { border: 1px solid rgba(34,197,94,0.3); }
+.fuel-station.cheapest .price { color: var(--green); }
+.cheapest-badge {
+  font-size: 0.65rem; color: var(--green); font-weight: 700;
+  letter-spacing: 0.05em; text-transform: uppercase;
+}
+
+/* IRON BUTT */
+.ironbutt-layout {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 4rem; align-items: center;
+}
+@media (max-width: 768px) {
+  .ironbutt-layout { grid-template-columns: 1fr; }
+}
+
+.ironbutt-steps { display: flex; flex-direction: column; gap: 1rem; }
+.ironbutt-step {
+  display: flex; gap: 1rem;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 1rem 1.2rem; align-items: center;
+}
+.ironbutt-step .icon { font-size: 1.5rem; flex-shrink: 0; }
+.ironbutt-step p { font-size: 0.9rem; color: var(--muted); }
+.ironbutt-step p strong { color: var(--text); }
+
+/* SIRI */
+.siri-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem; margin-top: 3rem;
+}
+
+.siri-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 1.2rem;
+  display: flex; align-items: center; gap: 0.8rem;
+}
+
+.siri-card .mic { font-size: 1.2rem; flex-shrink: 0; }
+.siri-card p { font-size: 0.85rem; color: var(--muted); }
+.siri-card p strong { color: var(--orange); font-style: italic; }
+
+/* HALL OF FAME */
+.hof-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem; margin-top: 3rem;
+}
+
+.hof-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; padding: 1.5rem; text-align: center;
+  position: relative;
+}
+
+.hof-card.champion { border-color: rgba(224,92,0,0.4); }
+
+.hof-rank {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 0.8rem; font-weight: 700; color: var(--muted);
+  letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.5rem;
+}
+.hof-rank.gold { color: var(--orange); }
+
+.hof-trophy { font-size: 2rem; margin-bottom: 0.5rem; }
+
+.hof-name {
+  font-weight: 600; font-size: 0.95rem; margin-bottom: 0.3rem;
+}
+.hof-km {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.8rem; font-weight: 900; color: var(--orange);
+}
+.hof-detail { color: var(--muted); font-size: 0.75rem; margin-top: 0.3rem; }
+
+/* CTA SECTION */
+.cta-section {
+  text-align: center;
+  padding: 8rem 2rem;
+  background: var(--dark);
+  border-top: 1px solid var(--border);
+  position: relative; overflow: hidden;
+}
+
+.cta-section::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(ellipse at 50% 50%, rgba(224,92,0,0.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.cta-section h2 {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: clamp(2.5rem, 6vw, 5rem);
+  font-weight: 900; margin-bottom: 1rem;
+}
+
+.cta-section p { color: var(--muted); font-size: 1.1rem; margin-bottom: 2.5rem; }
+
+/* FOOTER */
+footer {
+  padding: 2rem;
+  border-top: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 1rem;
+  color: var(--muted); font-size: 0.85rem;
+}
+
+.footer-logo {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 900; font-size: 1.2rem; color: var(--orange);
+}
+
+.divider {
+  width: 60px; height: 3px; background: var(--orange);
+  margin: 1.5rem 0;
+}
+
+.tag {
+  display: inline-block;
+  background: rgba(224,92,0,0.1); border: 1px solid rgba(224,92,0,0.2);
+  color: var(--orange); padding: 0.2rem 0.6rem; border-radius: 4px;
+  font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em;
+  text-transform: uppercase; margin-right: 0.5rem; margin-bottom: 0.5rem;
+}
 </style>
 </head>
 <body>
@@ -617,133 +471,330 @@
   <a href="#" class="nav-logo">MotoFuel</a>
   <ul class="nav-links">
     <li><a href="#features">Features</a></li>
-    <li><a href="#handsfree">Hands-free</a></li>
+    <li><a href="#voice">Voice</a></li>
+    <li><a href="#rides">Rides</a></li>
+    <li><a href="#fuel">Fuel Prices</a></li>
+    <li><a href="#ironbutt">Iron Butt</a></li>
     <li><a href="#halloffame">Hall of Fame</a></li>
-    <li><a href="#mymotofuel">My MotoFuel</a></li>
-    <li><a href="https://testflight.apple.com" target="_blank">TestFlight</a></li>
   </ul>
+  <a href="https://testflight.apple.com/join/14WTnnSh" class="nav-cta">Join TestFlight</a>
 </nav>
 
 <!-- HERO -->
 <section class="hero">
-  <div class="hero-bg"></div>
-  <p class="hero-eyebrow">Made in Iceland 🇮🇸 · Built by a rider, for riders</p>
-  <h1 class="hero-title">Moto<span>Fuel</span></h1>
-  <p class="hero-subtitle">Fuel & tire tracking for real riders</p>
-  <p class="hero-tagline">"Bikers are no buggers — keep it simple"</p>
-  <div class="hero-cta">
-    <a href="https://testflight.apple.com" class="btn-primary">Join TestFlight</a>
-    <a href="#features" class="btn-secondary">See Features</a>
+  <div class="hero-badge">🇮🇸 Made in Iceland · Built by a rider, for riders</div>
+  <h1>MOTO<span>FUEL</span></h1>
+  <p class="hero-sub">Fuel tracking, GPS ride logging, live fuel prices and Iron Butt mode — all hands-free.</p>
+  <p class="hero-quote">"Bikers are no buggers — keep it simple"</p>
+  <div class="hero-buttons">
+    <a href="https://testflight.apple.com/join/14WTnnSh" class="btn-primary">🍎 Join TestFlight</a>
+    <a href="#features" class="btn-secondary">See Features ↓</a>
   </div>
-  <div class="hero-scroll">↓ scroll</div>
+  <div class="hero-stats">
+    <div class="stat">
+      <div class="stat-number">76+</div>
+      <div class="stat-label">Fill-ups tracked</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number">14k+</div>
+      <div class="stat-label">km per tire</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number">3</div>
+      <div class="stat-label">Languages</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number">7,800+</div>
+      <div class="stat-label">UK stations live</div>
+    </div>
+  </div>
 </section>
-
-<!-- STATS STRIP -->
-<div class="stats-strip">
-  <div class="stat-item">
-    <div class="stat-number">75+</div>
-    <div class="stat-label">Fill-ups tracked</div>
-  </div>
-  <div class="stat-item">
-    <div class="stat-number">14k+</div>
-    <div class="stat-label">km per tire</div>
-  </div>
-  <div class="stat-item">
-    <div class="stat-number">3</div>
-    <div class="stat-label">Languages</div>
-  </div>
-  <div class="stat-item">
-    <div class="stat-number">🎙</div>
-    <div class="stat-label">Voice-first logging</div>
-  </div>
-</div>
 
 <!-- FEATURES -->
-<section class="section" id="features">
-  <p class="section-label">What it does</p>
-  <h2 class="section-title">Everything your<br>bike needs</h2>
-  <p class="section-sub">One app. Fuel history, tire tracking, wheel sets, costs and predictions — all in one place.</p>
+<section id="features">
+  <div class="container">
+    <div class="section-label">What it does</div>
+    <h2 class="section-title">Everything your<br>bike needs</h2>
+    <p class="section-sub">One app. Fuel history, tire tracking, GPS rides, live prices and Iron Butt certification — all in one place.</p>
 
-  <div class="features-grid">
-    <div class="feature-card">
-      <span class="feature-icon">⛽</span>
-      <h3 class="feature-title">Fuel Tracking</h3>
-      <p class="feature-text">Log every fill-up — litres, cost, odometer. The app calculates L/100km or MPG automatically and shows you trends over time.</p>
-    </div>
-    <div class="feature-card">
-      <span class="feature-icon">🛞</span>
-      <h3 class="feature-title">Wheel Sets</h3>
-      <p class="feature-text">Manage multiple rim sets — road, trail, track. Swap with one tap. The app tracks km separately on each set and shows a visual history timeline.</p>
-    </div>
-    <div class="feature-card">
-      <span class="feature-icon">📏</span>
-      <h3 class="feature-title">Tread Depth</h3>
-      <p class="feature-text">Log tread readings over time. The app calculates your wear rate and predicts how many km remain before you hit the legal minimum.</p>
-    </div>
-    <div class="feature-card">
-      <span class="feature-icon">📊</span>
-      <h3 class="feature-title">Burndown Prediction</h3>
-      <p class="feature-text">After a few tire changes, the app learns the average lifespan of your preferred brand and model — and predicts when the next one will be due.</p>
-    </div>
-    <div class="feature-card">
-      <span class="feature-icon">🏆</span>
-      <h3 class="feature-title">Hall of Fame</h3>
-      <p class="feature-text">Every tire that goes the full distance earns its place. The Hall of Fame tracks your retired tires and crowns the all-time champion.</p>
-    </div>
-    <div class="feature-card">
-      <span class="feature-icon">📈</span>
-      <h3 class="feature-title">Cost Trends</h3>
-      <p class="feature-text">Track cost per km over time. Spot seasonal patterns, price changes and the impact of different riding styles on your wallet.</p>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">⛽</div>
+        <h3>Fuel Tracking</h3>
+        <p>Log every fill-up — litres, cost, odometer. Calculates L/100km or MPG automatically and shows economy trends over time.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🗺️</div>
+        <h3>GPS Ride Tracking <span class="feature-new">New</span></h3>
+        <p>Every ride recorded. Route map, distance, duration, max and avg speed. Full ride history per bike with fill-up stops marked on the map.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⛽</div>
+        <h3>Live Fuel Prices <span class="feature-new">New</span></h3>
+        <p>Nearby petrol stations with live prices shown on your route map. Iceland and UK covered. Find cheapest or nearest with one tap.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🏁</div>
+        <h3>Iron Butt Mode <span class="feature-new">New</span></h3>
+        <p>Long distance certification mode. Receipt photos at every fuel stop, GPS route tracking and a PDF report ready for Iron Butt Association submission.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🛞</div>
+        <h3>Tire Tracking</h3>
+        <p>Manage multiple wheel sets. Swap with one tap. Track km per tire, tread depth over time and get burndown predictions.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <h3>Cost Trends</h3>
+        <p>Track cost per km over time. Spot seasonal patterns, price changes and the impact of riding style on your wallet.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📱</div>
+        <h3>Lock Screen Live Activity <span class="feature-new">New</span></h3>
+        <p>Ride in progress shown on your lock screen with live timer. One tap logs a fill-up without unlocking your phone.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🏆</div>
+        <h3>Hall of Fame</h3>
+        <p>Every tire that goes the full distance earns its place. The more tires you retire, the smarter your burndown predictions become.</p>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- HANDS-FREE -->
-<section class="handsfree-section" id="handsfree">
-  <div class="handsfree-inner">
-    <div>
-      <p class="section-label">Bluetooth Logging</p>
-      <h2 class="section-title">Gloves on.<br>Always.</h2>
-      <div class="divider"></div>
-      <p style="color: var(--text-dim); font-size: 16px; line-height: 1.7; margin-bottom: 32px;">
-        Pull up to the pump, fill up, and log it — just your voice and your headset. MotoFuel works through your Sena or Cardo. It speaks, you answer. No need to touch your phone.
-      </p>
-      <a href="#mymotofuel" class="btn-primary">Set up hands-free →</a>
+<!-- VOICE -->
+<section id="voice" class="voice-section">
+  <div class="container">
+    <div class="voice-layout">
+      <div>
+        <div class="section-label">Bluetooth Logging</div>
+        <h2 class="section-title">Gloves on.<br>Always.</h2>
+        <div class="divider"></div>
+        <p style="color:var(--muted); margin-bottom: 2rem;">Pull up to the pump, fill up, and log it — just your voice and your headset. MotoFuel works through your Sena or Cardo. It speaks, you answer. No need to touch your phone.</p>
+
+        <div class="voice-steps">
+          <div class="voice-step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <h4>"Hey Siri, fill up in MotoFuel"</h4>
+              <p>Siri shortcut launches the app instantly while you're still at the pump.</p>
+            </div>
+          </div>
+          <div class="voice-step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <h4>Which bike?</h4>
+              <p>Say the name. The app recognises it even through wind noise.</p>
+            </div>
+          </div>
+          <div class="voice-step">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <h4>Litres, cost, odometer</h4>
+              <p>One question at a time. You speak the numbers. AI extracts them.</p>
+            </div>
+          </div>
+          <div class="voice-step">
+            <div class="step-num">4</div>
+            <div class="step-content">
+              <h4>Ride type tagged</h4>
+              <p>"On-road 70%, off-road 30%" — the app reads it back before saving.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="phone-mockup">
+        <div class="phone-screen">
+          <div class="phone-header">
+            <span>🎙️</span>
+            <span class="phone-title">Hands-free Log</span>
+            <span class="live-badge">LIVE</span>
+          </div>
+          <div class="phone-row">
+            <span class="label">Bike</span>
+            <span class="value">Bimmi</span>
+          </div>
+          <div class="phone-row">
+            <span class="label">Litres</span>
+            <span class="value">15.00 L</span>
+          </div>
+          <div class="phone-row">
+            <span class="label">Cost</span>
+            <span class="value">3,000 kr</span>
+          </div>
+          <div class="phone-row">
+            <span class="label">Odometer</span>
+            <span class="value">14,592 km</span>
+          </div>
+          <div class="phone-row">
+            <span class="label">Economy</span>
+            <span class="value orange">5.7 L/100km</span>
+          </div>
+          <div class="phone-row">
+            <span class="label">Riding style</span>
+            <span class="value">Road 70% · Off 30%</span>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="flow-steps">
-      <div class="flow-step">
-        <div class="flow-num">01</div>
-        <div class="flow-content">
-          <h4>Hey Siri, fill up please</h4>
-          <p>A Siri Shortcut launches MotoFuel instantly while you're still at the pump.</p>
+
+    <!-- SIRI SHORTCUTS -->
+    <div style="margin-top: 4rem;">
+      <div class="section-label">Siri Shortcuts</div>
+      <h3 style="font-family:'Barlow Condensed',sans-serif; font-size:1.8rem; font-weight:900; margin-bottom:0.5rem;">Just say the word</h3>
+      <div class="siri-grid">
+        <div class="siri-card">
+          <span class="mic">🎙️</span>
+          <p><strong>"Hey Siri, fill up in MotoFuel"</strong><br>Opens hands-free fill-up logging</p>
+        </div>
+        <div class="siri-card">
+          <span class="mic">🎙️</span>
+          <p><strong>"Hey Siri, start ride in MotoFuel"</strong><br>Starts GPS tracking + Live Activity</p>
+        </div>
+        <div class="siri-card">
+          <span class="mic">🎙️</span>
+          <p><strong>"Hey Siri, end ride in MotoFuel"</strong><br>Ends ride and speaks summary</p>
         </div>
       </div>
-      <div class="flow-step">
-        <div class="flow-num">02</div>
-        <div class="flow-content">
-          <h4>Which bike?</h4>
-          <p>Say the name. The app recognises it even through wind noise.</p>
+    </div>
+  </div>
+</section>
+
+<!-- RIDES -->
+<section id="rides">
+  <div class="container">
+    <div class="section-label">Ride Tracking</div>
+    <h2 class="section-title">Every ride.<br>Recorded.</h2>
+    <p class="section-sub">Start a ride and MotoFuel tracks your route, speed and fill-up stops — all in the background while your phone stays in your pocket.</p>
+
+    <div class="ride-features">
+      <div class="ride-feature">
+        <div class="ride-feature-icon">🗺️</div>
+        <div>
+          <h4>GPS Route Map</h4>
+          <p>Full route recorded with start/end pins and fill-up stops marked on the map.</p>
         </div>
       </div>
-      <div class="flow-step">
-        <div class="flow-num">03</div>
-        <div class="flow-content">
-          <h4>Litres, cost, odometer</h4>
-          <p>The app asks one question at a time. You speak the numbers. AI extracts them.</p>
+      <div class="ride-feature">
+        <div class="ride-feature-icon">⚡</div>
+        <div>
+          <h4>Speed Tracking</h4>
+          <p>Max speed, average speed and a velocity chart over the full ride.</p>
         </div>
       </div>
-      <div class="flow-step">
-        <div class="flow-num">04</div>
-        <div class="flow-content">
-          <h4>"Go" — speak now</h4>
-          <p>You hear "Go" the moment the mic is hot. Say it clearly and ride on.</p>
+      <div class="ride-feature">
+        <div class="ride-feature-icon">📱</div>
+        <div>
+          <h4>Lock Screen Live Activity</h4>
+          <p>Ride duration and fill-up count live on your lock screen. Tap Log to voice-log a fill-up without unlocking.</p>
         </div>
       </div>
-      <div class="flow-step">
-        <div class="flow-num">05</div>
-        <div class="flow-content">
-          <h4>Ride type tagged</h4>
-          <p>"On-road 70%, off-road 30%" — the app reads it back before saving.</p>
+      <div class="ride-feature">
+        <div class="ride-feature-icon">📅</div>
+        <div>
+          <h4>Ride History</h4>
+          <p>Full history of every ride per bike — date, distance, duration and fill-ups logged.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FUEL PRICES -->
+<section id="fuel" class="fuel-section">
+  <div class="container">
+    <div class="section-label">Live Fuel Prices</div>
+    <h2 class="section-title">Know before<br>you stop.</h2>
+    <p class="section-sub">Petrol stations with live prices shown on your route map and nearby. Iceland and UK covered. Find the cheapest or nearest with one tap.</p>
+
+    <div class="fuel-grid">
+      <div class="fuel-card">
+        <h3>🇮🇸 Iceland</h3>
+        <p>All major stations — N1, Orkan, ÓB, Olís, Atlantsolía. Updated regularly via Gasvaktin open data.</p>
+        <div class="fuel-stations">
+          <div class="fuel-station cheapest">
+            <span class="name">N1 Grafarvogur</span>
+            <div style="text-align:right">
+              <div class="price">228 ISK/L</div>
+              <div class="cheapest-badge">★ Cheapest nearby</div>
+            </div>
+          </div>
+          <div class="fuel-station">
+            <span class="name">Orkan Kringlan</span>
+            <span class="price">234 ISK/L</span>
+          </div>
+          <div class="fuel-station">
+            <span class="name">ÓB Breiðholt</span>
+            <span class="price">241 ISK/L</span>
+          </div>
+        </div>
+      </div>
+      <div class="fuel-card">
+        <h3>🇬🇧 United Kingdom</h3>
+        <p>7,800+ stations. Legally mandated government data updated every 30 minutes via UK Fuel Finder.</p>
+        <div class="fuel-stations">
+          <div class="fuel-station cheapest">
+            <span class="name">Asda Derby</span>
+            <div style="text-align:right">
+              <div class="price">145.7p/L</div>
+              <div class="cheapest-badge">★ Cheapest nearby</div>
+            </div>
+          </div>
+          <div class="fuel-station">
+            <span class="name">Tesco Extra</span>
+            <span class="price">149.9p/L</span>
+          </div>
+          <div class="fuel-station">
+            <span class="name">BP Station</span>
+            <span class="price">157.4p/L</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- IRON BUTT -->
+<section id="ironbutt">
+  <div class="container">
+    <div class="ironbutt-layout">
+      <div>
+        <div class="section-label">Iron Butt Mode</div>
+        <h2 class="section-title">1,000 miles.<br>24 hours.</h2>
+        <div class="divider"></div>
+        <p style="color:var(--muted); margin-bottom:2rem;">MotoFuel's Iron Butt mode documents everything the Iron Butt Association requires — GPS route, timestamped receipts, fuel stops and a PDF report ready to submit.</p>
+
+        <div class="ironbutt-steps">
+          <div class="ironbutt-step">
+            <span class="icon">🏁</span>
+            <p><strong>Start your Iron Butt ride</strong> — GPS tracking begins, Live Activity shows on lock screen</p>
+          </div>
+          <div class="ironbutt-step">
+            <span class="icon">📷</span>
+            <p><strong>Snap receipts at every fuel stop</strong> — timestamped and geotagged automatically</p>
+          </div>
+          <div class="ironbutt-step">
+            <span class="icon">🗺️</span>
+            <p><strong>Full GPS route recorded</strong> — every km tracked with speed data</p>
+          </div>
+          <div class="ironbutt-step">
+            <span class="icon">📄</span>
+            <p><strong>PDF report generated</strong> — route map, receipts, stats. Ready for IBA submission</p>
+          </div>
+        </div>
+      </div>
+
+      <div style="text-align:center;">
+        <div style="font-size:8rem; line-height:1; margin-bottom:1rem;">🏁</div>
+        <div style="font-family:'Barlow Condensed',sans-serif; font-size:3rem; font-weight:900; color:var(--orange);">IRON BUTT</div>
+        <div style="color:var(--muted); font-size:0.9rem; margin-top:0.5rem;">Certified documentation mode</div>
+        <div style="margin-top:2rem; display:flex; flex-direction:column; gap:0.8rem;">
+          <span class="tag">GPS Route</span>
+          <span class="tag">Receipt Photos</span>
+          <span class="tag">Speed Data</span>
+          <span class="tag">PDF Report</span>
+          <span class="tag">IBA Ready</span>
         </div>
       </div>
     </div>
@@ -751,95 +802,69 @@
 </section>
 
 <!-- HALL OF FAME -->
-<section class="hof-section" id="halloffame">
-  <div>
-    <p class="section-label">Tire Hall of Fame</p>
-    <h2 class="section-title">Earned<br>every km</h2>
-    <div class="divider"></div>
-    <p style="color: var(--text-dim); font-size: 16px; line-height: 1.7; margin-bottom: 24px;">
-      When a tire goes the full distance, it earns a place in the Hall of Fame. The app measures the final tread depth — if it's ≤ 2.0mm, the tire is officially retired and added to the prediction pool.
-    </p>
-    <p style="color: var(--text-dim); font-size: 16px; line-height: 1.7; margin-bottom: 32px;">
-      The more tires you retire properly, the smarter the burndown predictions become. Every worn-out tire makes the next prediction more accurate.
-    </p>
-    <a href="https://testflight.apple.com" class="btn-secondary">Join TestFlight →</a>
-  </div>
-  <div class="hof-card">
-    <div style="font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: var(--text-dim);">🏆 Hall of Fame</div>
-    <div class="hof-champion">
-      <div class="hof-champion-label">👑 All-time champion</div>
-      <div class="hof-champion-name">Michelin Anakee III</div>
-      <div class="hof-champion-km">13,636 km</div>
-      <div style="color: var(--text-dim); font-size: 12px; margin-top: 4px;">Front · Trail Rims · 2019–2024</div>
-    </div>
-    <div class="hof-row">
-      <div class="hof-rank">#2</div>
-      <div style="flex: 1;">
-        <div class="hof-tire-name">Michelin Anakee III</div>
-        <div class="hof-tire-meta">Rear · Trail Rims</div>
+<section id="halloffame" style="background:var(--dark); border-top:1px solid var(--border);">
+  <div class="container">
+    <div class="section-label">Tire Hall of Fame</div>
+    <h2 class="section-title">Earned<br>every km.</h2>
+    <p class="section-sub">When a tire goes the full distance, it earns its place. The Hall of Fame tracks your retired tires and makes your burndown predictions smarter.</p>
+
+    <div class="hof-grid">
+      <div class="hof-card champion">
+        <div class="hof-rank gold">👑 Champion</div>
+        <div class="hof-trophy">🏆</div>
+        <div class="hof-name">Michelin Anakee III</div>
+        <div class="hof-km">13,636 km</div>
+        <div class="hof-detail">Front · Trail Rims · 2019–2024</div>
       </div>
-      <div class="hof-tire-km">11,984 km</div>
-    </div>
-    <div class="hof-row">
-      <div class="hof-rank">#3</div>
-      <div style="flex: 1;">
-        <div class="hof-tire-name">Michelin Anakee Wild</div>
-        <div class="hof-tire-meta">Rear · Trail Rims</div>
+      <div class="hof-card">
+        <div class="hof-rank">#2</div>
+        <div class="hof-trophy">🥈</div>
+        <div class="hof-name">Michelin Anakee III</div>
+        <div class="hof-km">11,984 km</div>
+        <div class="hof-detail">Rear · Trail Rims</div>
       </div>
-      <div class="hof-tire-km">3,934 km</div>
-    </div>
-    <div class="hof-row">
-      <div class="hof-rank">#4</div>
-      <div style="flex: 1;">
-        <div class="hof-tire-name">Michelin Anakee III</div>
-        <div class="hof-tire-meta">Rear · Road Rims</div>
+      <div class="hof-card">
+        <div class="hof-rank">#3</div>
+        <div class="hof-trophy">🥉</div>
+        <div class="hof-name">Michelin Anakee III</div>
+        <div class="hof-km">11,770 km</div>
+        <div class="hof-detail">Rear · Road Rims</div>
       </div>
-      <div class="hof-tire-km">11,770 km</div>
+      <div class="hof-card">
+        <div class="hof-rank">#4</div>
+        <div class="hof-trophy">🏅</div>
+        <div class="hof-name">Michelin Anakee Wild</div>
+        <div class="hof-km">3,934 km</div>
+        <div class="hof-detail">Rear · Trail Rims</div>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- MY MOTOFUEL -->
-<section class="mymoto-section" id="mymotofuel">
-  <div class="mymoto-inner">
-    <div class="coming-soon-badge">Coming soon</div>
-    <p class="section-label">My MotoFuel</p>
-    <h2 class="section-title">Your data.<br>Your dashboard.</h2>
-    <p style="color: var(--text-dim); font-size: 18px; line-height: 1.7; margin-top: 16px;">
-      Export your data from the app and upload it here — your full fuel history, tire records and stats come alive on the web. No account needed. Your data stays yours.
-    </p>
-
-    <div class="mymoto-features">
-      <div class="mymoto-feature">
-        <div class="mymoto-feature-icon">⛽</div>
-        <div class="mymoto-feature-title">Fuel history</div>
-        <div class="mymoto-feature-text">Full fill-up history with economy trends, cost charts and seasonal patterns.</div>
-      </div>
-      <div class="mymoto-feature">
-        <div class="mymoto-feature-icon">🛞</div>
-        <div class="mymoto-feature-title">Tire records</div>
-        <div class="mymoto-feature-text">Wheel set timelines, tire lifespans and Hall of Fame — all visualised.</div>
-      </div>
-      <div class="mymoto-feature">
-        <div class="mymoto-feature-icon">📊</div>
-        <div class="mymoto-feature-title">Stats dashboard</div>
-        <div class="mymoto-feature-text">Total km, total spent, average economy — everything your bike has done.</div>
-      </div>
+<!-- CTA -->
+<section class="cta-section">
+  <div class="container">
+    <h2>Ready to ride<br><span style="color:var(--orange)">smarter?</span></h2>
+    <p>Join TestFlight and be among the first riders on MotoFuel.<br>Free during beta. Available on iOS.</p>
+    <div class="hero-buttons" style="justify-content:center;">
+      <a href="https://testflight.apple.com/join/14WTnnSh" class="btn-primary">🍎 Join TestFlight</a>
+      <a href="mailto:thereykjavikrider@gmail.com" class="btn-secondary">Get in touch</a>
     </div>
-
-    <p style="color: var(--text-dim); font-size: 15px; margin-top: 40px;">Get notified when My MotoFuel launches:</p>
-    <div class="email-form">
-      <input type="email" class="email-input" placeholder="your@email.com" />
-      <button class="btn-primary" style="border: none; cursor: pointer;">Notify me</button>
+    <div style="margin-top:3rem; color:var(--muted); font-size:0.85rem;">
+      English · Íslenska · Dansk &nbsp;·&nbsp; iOS 16.2+
     </div>
   </div>
 </section>
 
 <!-- FOOTER -->
 <footer>
-  <div class="footer-logo">MotoFuel</div>
-  <div class="footer-text">© 2026 MotoFuel · motofuel.app · Made in Iceland</div>
-  <div class="footer-flag">🇮🇸</div>
+  <div>
+    <span class="footer-logo">MotoFuel</span>
+    <span style="margin-left:1rem;">© 2026 · motofuel.app · 🇮🇸 Made in Iceland</span>
+  </div>
+  <div style="color:var(--muted); font-size:0.8rem;">
+    Fuel data: <a href="https://github.com/gasvaktin/gasvaktin" style="color:var(--muted);">Gasvaktin</a> (MIT) · <a href="https://www.gov.uk/guidance/access-the-latest-fuel-prices-and-forecourt-data-via-api-or-email" style="color:var(--muted);">UK Gov Fuel Finder</a>
+  </div>
 </footer>
 
 </body>
