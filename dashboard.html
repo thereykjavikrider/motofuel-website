@@ -726,49 +726,58 @@ function renderRides(rides, theme) {
 function renderTires(wheelSets, theme) {
   if (!wheelSets || !wheelSets.length) return '';
 
-  // Flatten all tires from all wheel sets
-  let allTires = [];
+  // New format: wheel_sets with stints containing tires
+  // Flatten all stints across all wheel sets for Hall of Fame
+  let allStints = [];
   wheelSets.forEach(ws => {
-    const tires = (ws.tires || []).map(t => ({ ...t, wheel_set: ws.name || '' }));
-    allTires = allTires.concat(tires);
+    (ws.stints || []).forEach(s => {
+      allStints.push({ ...s, wheel_set: ws.name || '' });
+    });
   });
-  if (!allTires.length) return '';
 
-  const active = allTires.filter(t => !t.retired);
-  const hof = allTires.filter(t => t.retired).sort((a,b) => (b.km_ridden||0) - (a.km_ridden||0)).slice(0,6);
+  if (!allStints.length) return '';
+
+  // Find the current/active stint (no retired_at)
+  const activeStints = allStints.filter(s => !s.retired_at);
+  // Retired stints for Hall of Fame — flatten to individual tire entries
+  let hofEntries = [];
+  allStints.filter(s => s.retired_at).forEach(s => {
+    (s.tires || []).forEach(t => {
+      hofEntries.push({ ...t, mounted_at: s.mounted_at, retired_at: s.retired_at, wheel_set: s.wheel_set, km: s.odometer_off - s.odometer_on });
+    });
+  });
+  hofEntries.sort((a,b) => (b.km||0) - (a.km||0));
 
   let html = `<div style="margin-bottom:1.5rem"><div class="section-title" style="color:${theme.color}">🛞 Tire Tracker</div>`;
 
-  // Wheel sets grouped
-  wheelSets.forEach(ws => {
-    if (!ws.tires || !ws.tires.length) return;
-    const activeTires = ws.tires.filter(t => !t.retired);
-    if (!activeTires.length) return;
-    html += `<div style="margin-bottom:0.5rem;color:var(--muted);font-size:0.8rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase">${ws.name || 'Wheel Set'}</div>
-    <div class="tire-grid" style="margin-bottom:1.5rem">` +
-    activeTires.map(t => `<div class="tire-card">
-      <h4>${t.brand || ''} ${t.model || ''}</h4>
-      <div class="tire-detail">${t.position || ''} · ${t.size || ''}</div>
-      <div class="tire-km" style="color:${theme.color}">${(t.km_ridden||0).toLocaleString()} km</div>
-      ${t.mounted_at ? `<div style="color:var(--muted);font-size:0.75rem;margin-top:0.3rem">Since ${t.mounted_at}</div>` : ''}
-      <span class="tire-status active">Active</span>
-    </div>`).join('') + '</div>';
-  });
+  // Active stints
+  if (activeStints.length) {
+    html += `<div style="margin-bottom:0.8rem;color:var(--muted);font-size:0.8rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase">Current Tires</div>`;
+    activeStints.forEach(s => {
+      html += `<div style="margin-bottom:0.4rem;color:var(--muted);font-size:0.8rem">${s.wheel_set} · Since ${s.mounted_at} · ${(s.odometer_off - s.odometer_on).toLocaleString()} km so far</div>
+      <div class="tire-grid" style="margin-bottom:1.5rem">` +
+      (s.tires || []).map(t => `<div class="tire-card">
+        <h4>${t.brand || ''} ${t.model || ''}</h4>
+        <div class="tire-detail">${t.position || ''} · ${t.size || ''}</div>
+        <div class="tire-km" style="color:${theme.color}">${(t.km_in_stint||0).toLocaleString()} km</div>
+        <span class="tire-status active">Active</span>
+      </div>`).join('') + '</div>';
+    });
+  }
 
-  if (hof.length) {
+  // Hall of Fame
+  if (hofEntries.length) {
+    const trophies = ['🏆','🥈','🥉','🏅','🏅','🏅','🏅','🏅'];
     html += `<div style="margin-bottom:1rem;color:var(--muted);font-size:0.8rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase">🏆 Hall of Fame</div>
     <div class="hof-grid">` +
-    hof.map((t, i) => {
-      const trophies = ['🏆','🥈','🥉','🏅','🏅','🏅'];
-      return `<div class="hof-card" ${i===0?`style="border-color:${theme.color}40"`:''}>
-        <div class="hof-rank" ${i===0?`style="color:${theme.color}"`:''}>${i===0?'👑 Champion':'#'+(i+1)}</div>
-        <div class="hof-trophy">${trophies[i]||'🏅'}</div>
-        <div class="hof-name">${t.brand||''} ${t.model||''}</div>
-        <div style="font-size:0.75rem;color:var(--muted);margin-bottom:0.3rem">${t.position||''} · ${t.wheel_set||''}</div>
-        <div class="hof-km" style="color:${theme.color}">${(t.km_ridden||0).toLocaleString()} km</div>
-        ${t.retired_at ? `<div style="color:var(--muted);font-size:0.7rem;margin-top:0.3rem">${t.mounted_at} → ${t.retired_at}</div>` : ''}
-      </div>`;
-    }).join('') + '</div>';
+    hofEntries.slice(0,6).map((t, i) => `<div class="hof-card" ${i===0?`style="border-color:${theme.color}40"`:''}>
+      <div class="hof-rank" ${i===0?`style="color:${theme.color}"`:''}>${i===0?'👑 Champion':'#'+(i+1)}</div>
+      <div class="hof-trophy">${trophies[i]||'🏅'}</div>
+      <div class="hof-name">${t.brand||''} ${t.model||''}</div>
+      <div style="font-size:0.75rem;color:var(--muted);margin-bottom:0.3rem">${t.position||''} · ${t.wheel_set||''}</div>
+      <div class="hof-km" style="color:${theme.color}">${(t.km||0).toLocaleString()} km</div>
+      <div style="color:var(--muted);font-size:0.7rem;margin-top:0.3rem">${t.mounted_at} → ${t.retired_at}</div>
+    </div>`).join('') + '</div>';
   }
 
   return html + '</div>';
