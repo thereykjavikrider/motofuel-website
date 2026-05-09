@@ -347,12 +347,37 @@ function handleFile(file) {
 }
 
 function normaliseData(raw) {
-  // Handle both array of bikes and {bikes: [...]} format
-  if (Array.isArray(raw)) return { bikes: raw };
-  if (raw.bikes) return raw;
-  // Single bike object
-  if (raw.make || raw.model || raw.fillups) return { bikes: [raw] };
-  return { bikes: [] };
+  let bikes = [];
+  // MotoFuel export format: {bike: {...}, fillups: [...]}
+  if (raw.bike && raw.fillups) {
+    const bike = { ...raw.bike, fillups: raw.fillups, tires: raw.tires || [], rides: raw.rides || [] };
+    bikes = [bike];
+  } else if (Array.isArray(raw)) {
+    bikes = raw;
+  } else if (raw.bikes) {
+    bikes = raw.bikes;
+  } else if (raw.make || raw.model || raw.fillups) {
+    bikes = [raw];
+  }
+
+  // Calculate economy and distance from odometer readings
+  bikes = bikes.map(bike => {
+    const fillups = (bike.fillups || []).map((f, i, arr) => {
+      const prev = arr.slice(0, i).reverse().find(p => !p.partial);
+      let economy = null;
+      let distance_km = null;
+      if (prev && !f.partial && f.odometer && prev.odometer) {
+        distance_km = f.odometer - prev.odometer;
+        if (distance_km > 0 && f.litres > 0) {
+          economy = (f.litres / distance_km) * 100;
+        }
+      }
+      return { ...f, economy, distance_km };
+    });
+    return { ...bike, fillups };
+  });
+
+  return { bikes };
 }
 
 function resetDashboard() {
