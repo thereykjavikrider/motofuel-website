@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My MotoFuel Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&family=Oswald:wght@400;600;700&family=Bebas+Neue&family=Rajdhani:wght@600;700&family=Titillium+Web:wght@400;600;700&family=Playfair+Display:wght@700;900&family=Racing+Sans+One&family=Rye&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 :root {
@@ -223,18 +223,19 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
 
 /* MANUFACTURER THEMES */
-.theme-bmw { --brand: #0066CC; --brand-glow: rgba(0,102,204,0.15); }
-.theme-honda { --brand: #CC0000; --brand-glow: rgba(204,0,0,0.15); }
-.theme-kawasaki { --brand: #00A651; --brand-glow: rgba(0,166,81,0.15); }
-.theme-yamaha { --brand: #002D72; --brand-glow: rgba(0,45,114,0.15); }
-.theme-ducati { --brand: #CC0000; --brand-glow: rgba(204,0,0,0.15); }
-.theme-ktm { --brand: #FF6600; --brand-glow: rgba(255,102,0,0.15); }
-.theme-triumph { --brand: #C5A028; --brand-glow: rgba(197,160,40,0.15); }
-.theme-harley { --brand: #FF6600; --brand-glow: rgba(255,102,0,0.15); }
-.theme-suzuki { --brand: #004B93; --brand-glow: rgba(0,75,147,0.15); }
-.theme-aprilia { --brand: #C00000; --brand-glow: rgba(192,0,0,0.15); }
-.theme-royalenfield { --brand: #8B0000; --brand-glow: rgba(139,0,0,0.15); }
-.theme-default { --brand: #e05c00; --brand-glow: rgba(224,92,0,0.15); }
+.theme-bmw         { --brand: #1C69D4; --brand-glow: rgba(28,105,212,0.15); }
+.theme-bmw .bike-header { border-bottom: 4px solid transparent; border-image: linear-gradient(90deg, #6CBAE7 33%, #1C69D4 33%, #1C69D4 66%, #E52222 66%) 1; }
+.theme-honda       { --brand: #CC0000; --brand-glow: rgba(204,0,0,0.15); }
+.theme-kawasaki    { --brand: #39B54A; --brand-glow: rgba(57,181,74,0.15); }
+.theme-yamaha      { --brand: #0A0A8C; --brand-glow: rgba(10,10,140,0.15); }
+.theme-ducati      { --brand: #CC0000; --brand-glow: rgba(204,0,0,0.15); }
+.theme-ktm         { --brand: #FF6600; --brand-glow: rgba(255,102,0,0.15); }
+.theme-triumph     { --brand: #C5A028; --brand-glow: rgba(197,160,40,0.15); }
+.theme-harley      { --brand: #FF6600; --brand-glow: rgba(255,102,0,0.15); }
+.theme-suzuki      { --brand: #004B93; --brand-glow: rgba(0,75,147,0.15); }
+.theme-aprilia     { --brand: #C00000; --brand-glow: rgba(192,0,0,0.15); }
+.theme-royalenfield{ --brand: #8B4513; --brand-glow: rgba(139,69,19,0.15); }
+.theme-default     { --brand: #e05c00; --brand-glow: rgba(224,92,0,0.15); }
 
 /* UTILS */
 .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 3px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
@@ -294,18 +295,18 @@ canvas { max-height: 250px; }
 <script>
 // ── MANUFACTURER THEMES ──────────────────────────────────────────
 const THEMES = {
-  bmw:         { class: 'theme-bmw',         color: '#0066CC', emoji: '🔵', bg: 'linear-gradient(135deg, #001a3d, #003070)' },
-  honda:       { class: 'theme-honda',       color: '#CC0000', emoji: '🔴', bg: 'linear-gradient(135deg, #3d0000, #700000)' },
-  kawasaki:    { class: 'theme-kawasaki',    color: '#00A651', emoji: '🟢', bg: 'linear-gradient(135deg, #002d15, #005528)' },
-  yamaha:      { class: 'theme-yamaha',      color: '#002D72', emoji: '🔵', bg: 'linear-gradient(135deg, #000d20, #001840)' },
-  ducati:      { class: 'theme-ducati',      color: '#CC0000', emoji: '🔴', bg: 'linear-gradient(135deg, #3d0000, #700000)' },
-  ktm:         { class: 'theme-ktm',         color: '#FF6600', emoji: '🟠', bg: 'linear-gradient(135deg, #2d1500, #5a2900)' },
-  triumph:     { class: 'theme-triumph',     color: '#C5A028', emoji: '🟡', bg: 'linear-gradient(135deg, #1a1500, #352b00)' },
-  'harley-davidson': { class: 'theme-harley', color: '#FF6600', emoji: '🟠', bg: 'linear-gradient(135deg, #1a0a00, #2d1500)' },
-  harley:      { class: 'theme-harley',      color: '#FF6600', emoji: '🟠', bg: 'linear-gradient(135deg, #1a0a00, #2d1500)' },
-  suzuki:      { class: 'theme-suzuki',      color: '#004B93', emoji: '🔵', bg: 'linear-gradient(135deg, #001428, #002850)' },
-  aprilia:     { class: 'theme-aprilia',     color: '#C00000', emoji: '🔴', bg: 'linear-gradient(135deg, #300000, #600000)' },
-  'royal enfield': { class: 'theme-royalenfield', color: '#8B0000', emoji: '🔴', bg: 'linear-gradient(135deg, #1a0000, #3d0000)' },
+  bmw:         { class: 'theme-bmw',         color: '#1C69D4', emoji: '🔵', bg: 'linear-gradient(135deg, #000d1a, #003057)', stripe: true,  font: 'Oswald, sans-serif',          label: 'BMW Motorrad' },
+  honda:       { class: 'theme-honda',       color: '#CC0000', emoji: '🔴', bg: 'linear-gradient(135deg, #1a0000, #3d0000)', font: '"Racing Sans One", sans-serif',  label: 'Honda' },
+  kawasaki:    { class: 'theme-kawasaki',    color: '#39B54A', emoji: '🟢', bg: 'linear-gradient(135deg, #001a0a, #003015)', font: '"Bebas Neue", sans-serif',        label: 'Kawasaki' },
+  yamaha:      { class: 'theme-yamaha',      color: '#0A0A8C', emoji: '🔵', bg: 'linear-gradient(135deg, #000010, #00003a)', font: '"Titillium Web", sans-serif',     label: 'Yamaha' },
+  ducati:      { class: 'theme-ducati',      color: '#CC0000', emoji: '🔴', bg: 'linear-gradient(135deg, #0a0000, #1a0000)', font: '"Playfair Display", serif',       label: 'Ducati' },
+  ktm:         { class: 'theme-ktm',         color: '#FF6600', emoji: '🟠', bg: 'linear-gradient(135deg, #0d0500, #1a0a00)', font: '"Bebas Neue", sans-serif',        label: 'KTM' },
+  triumph:     { class: 'theme-triumph',     color: '#C5A028', emoji: '🟡', bg: 'linear-gradient(135deg, #0d0d00, #1a1500)', font: '"Playfair Display", serif',       label: 'Triumph' },
+  'harley-davidson': { class: 'theme-harley', color: '#FF6600', emoji: '🟠', bg: 'linear-gradient(135deg, #0d0500, #1a0800)', font: 'Rye, serif',                    label: 'Harley-Davidson' },
+  harley:      { class: 'theme-harley',      color: '#FF6600', emoji: '🟠', bg: 'linear-gradient(135deg, #0d0500, #1a0800)', font: 'Rye, serif',                    label: 'Harley-Davidson' },
+  suzuki:      { class: 'theme-suzuki',      color: '#004B93', emoji: '🔵', bg: 'linear-gradient(135deg, #000a18, #001428)', font: '"Rajdhani", sans-serif',          label: 'Suzuki' },
+  aprilia:     { class: 'theme-aprilia',     color: '#C00000', emoji: '🔴', bg: 'linear-gradient(135deg, #0d0000, #200000)', font: '"Barlow Condensed", sans-serif',  label: 'Aprilia' },
+  'royal enfield': { class: 'theme-royalenfield', color: '#8B4513', emoji: '🟤', bg: 'linear-gradient(135deg, #0d0500, #1a0a00)', font: '"Playfair Display", serif', label: 'Royal Enfield' },
 };
 
 function getTheme(make) {
@@ -461,13 +462,15 @@ function renderBikeHeader(bike, theme, fillups, rides) {
   const totalCost = fillups.reduce((s,f) => s + (f.total_cost || 0), 0);
   const currency = bike.currency || 'kr';
 
+  const mStripe = theme.stripe ? `<div style="display:flex;height:4px;margin-bottom:1.5rem;border-radius:2px;overflow:hidden;width:120px"><div style="flex:1;background:#6CBAE7"></div><div style="flex:1;background:#1C69D4"></div><div style="flex:1;background:#E52222"></div></div>` : '';
   return `
   <div class="bike-header" style="background: ${theme.bg};">
     <div class="bike-header::before" style="background:${theme.color}"></div>
     <div class="bike-header-content">
-      <div class="bike-make" style="color:${theme.color}">${theme.emoji} ${bike.make || 'Unknown'}</div>
-      <div class="bike-name">${bike.name || bike.model || 'My Bike'}</div>
+      <div class="bike-make" style="color:${theme.color};font-family:${theme.font||'inherit'}">${theme.label || bike.make || 'Unknown'}</div>
+      <div class="bike-name" style="font-family:${theme.font||'Barlow Condensed, sans-serif'}">${bike.name || bike.model || 'My Bike'}</div>
       <div class="bike-model">${bike.model || ''} · ${bike.year || ''}</div>
+      ${mStripe}
       <div class="stats-row">
         <div class="stat-card">
           <div class="stat-label">Avg Economy</div>
