@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My MotoFuel Dashboard — How it works</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --orange: #e05c00;
+  --black: #0a0a0a;
+  --dark: #111111;
+  --card: #1a1a1a;
+  --border: #2a2a2a;
+  --text: #f0f0f0;
+  --muted: #888888;
+  --green: #22c55e;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--black); color: var(--text); font-family: 'Barlow', sans-serif; font-size: 16px; line-height: 1.6; }
+
+nav {
+  padding: 1rem 2rem;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  background: var(--dark);
+}
+.nav-logo { font-family: 'Barlow Condensed', sans-serif; font-size: 1.4rem; font-weight: 900; color: var(--orange); text-decoration: none; }
+.nav-link { color: var(--muted); text-decoration: none; font-size: 0.9rem; }
+.nav-link:hover { color: var(--text); }
+
+.hero {
+  text-align: center; padding: 4rem 2rem 3rem;
+  border-bottom: 1px solid var(--border);
+}
+.hero h1 { font-family: 'Barlow Condensed', sans-serif; font-size: clamp(2.5rem, 7vw, 5rem); font-weight: 900; margin-bottom: 0.5rem; }
+.hero h1 span { color: var(--orange); }
+.hero p { color: var(--muted); font-size: 1.1rem; max-width: 500px; margin: 0 auto; }
+
+.container { max-width: 800px; margin: 0 auto; padding: 3rem 2rem; }
+
+.method {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 16px; margin-bottom: 2rem; overflow: hidden;
+}
+
+.method-header {
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 1rem;
+}
+
+.method-num {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1rem; font-weight: 900;
+  background: var(--orange); color: white;
+  width: 2rem; height: 2rem; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.method-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.4rem; font-weight: 700; }
+.method-badge {
+  margin-left: auto;
+  background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.3);
+  color: var(--green); font-size: 0.7rem; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 0.2rem 0.6rem; border-radius: 3px;
+}
+.method-badge.recommended { background: rgba(224,92,0,0.15); border-color: rgba(224,92,0,0.3); color: var(--orange); }
+
+.method-body { padding: 1.5rem 2rem; }
+
+.steps { display: flex; flex-direction: column; gap: 1rem; }
+.step { display: flex; gap: 1rem; align-items: flex-start; }
+.step-icon { font-size: 1.3rem; flex-shrink: 0; width: 2rem; text-align: center; margin-top: 0.1rem; }
+.step-text h4 { font-weight: 600; margin-bottom: 0.2rem; }
+.step-text p { color: var(--muted); font-size: 0.9rem; }
+.step-text code { background: #2a2a2a; color: var(--orange); padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.85rem; }
+
+.divider { height: 1px; background: var(--border); margin: 1.5rem 0; }
+
+.tip {
+  background: rgba(224,92,0,0.08); border: 1px solid rgba(224,92,0,0.2);
+  border-radius: 8px; padding: 1rem 1.2rem;
+  display: flex; gap: 0.8rem; align-items: flex-start;
+  margin-top: 1rem;
+}
+.tip-icon { font-size: 1.1rem; flex-shrink: 0; }
+.tip p { font-size: 0.9rem; color: var(--muted); }
+.tip p strong { color: var(--text); }
+
+.warning {
+  background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2);
+  border-radius: 8px; padding: 1rem 1.2rem;
+  display: flex; gap: 0.8rem; align-items: flex-start;
+  margin-top: 1rem;
+}
+.warning p { font-size: 0.9rem; color: #fca5a5; }
+
+.faq { margin-top: 3rem; }
+.faq h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 2rem; font-weight: 900; margin-bottom: 1.5rem; }
+
+.faq-item { border-bottom: 1px solid var(--border); padding: 1.2rem 0; }
+.faq-item:last-child { border-bottom: none; }
+.faq-q { font-weight: 600; margin-bottom: 0.5rem; display: flex; gap: 0.5rem; }
+.faq-q::before { content: 'Q'; color: var(--orange); font-family: 'Barlow Condensed', sans-serif; font-weight: 900; }
+.faq-a { color: var(--muted); font-size: 0.95rem; padding-left: 1.2rem; }
+
+.cta {
+  text-align: center; padding: 3rem 2rem;
+  border-top: 1px solid var(--border);
+  margin-top: 2rem;
+}
+.cta h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 2rem; font-weight: 900; margin-bottom: 0.5rem; }
+.cta p { color: var(--muted); margin-bottom: 1.5rem; }
+.btn { display: inline-block; background: var(--orange); color: white; padding: 0.8rem 2rem; border-radius: 6px; text-decoration: none; font-weight: 700; transition: background 0.2s; }
+.btn:hover { background: #b84d00; }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); margin-left: 0.5rem; }
+.btn-outline:hover { border-color: var(--orange); color: var(--orange); background: transparent; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo">MotoFuel</a>
+  <a href="/dashboard.html" class="nav-link">📊 My Dashboard →</a>
+</nav>
+
+<div class="hero">
+  <h1>My <span>MotoFuel</span><br>Dashboard</h1>
+  <p>See your ride data on the big screen. Two ways to get it there — pick what works for you.</p>
+</div>
+
+<div class="container">
+
+  <!-- METHOD 1: One tap from app -->
+  <div class="method">
+    <div class="method-header">
+      <div class="method-num">1</div>
+      <div class="method-title">One tap from the app</div>
+      <span class="method-badge recommended">⚡ Fastest</span>
+    </div>
+    <div class="method-body">
+      <p style="color:var(--muted); margin-bottom:1.5rem;">Open your bike in MotoFuel, tap one button — dashboard opens in Safari with your data already loaded. Done.</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-icon">🏍️</div>
+          <div class="step-text">
+            <h4>Open MotoFuel on your iPhone</h4>
+            <p>Tap on your bike to open the bike detail screen.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-icon">👇</div>
+          <div class="step-text">
+            <h4>Scroll down to the bottom</h4>
+            <p>Find the action buttons at the bottom of the bike screen.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-icon">📊</div>
+          <div class="step-text">
+            <h4>Tap "Open in Dashboard"</h4>
+            <p>Safari opens automatically with your bike data loaded. That's it.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-icon">✅</div>
+          <div class="step-text">
+            <h4>Dashboard remembers your data</h4>
+            <p>Next time you visit <code>motofuel.app/dashboard</code> your data is still there — no need to import again.</p>
+          </div>
+        </div>
+      </div>
+      <div class="tip">
+        <div class="tip-icon">💡</div>
+        <p><strong>Have multiple bikes?</strong> Tap "Open in Dashboard" on each bike separately. The dashboard will show tabs for each one.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- METHOD 2: File import -->
+  <div class="method">
+    <div class="method-header">
+      <div class="method-num">2</div>
+      <div class="method-title">Import a file</div>
+      <span class="method-badge">📂 Manual</span>
+    </div>
+    <div class="method-body">
+      <p style="color:var(--muted); margin-bottom:1.5rem;">Export your data from the app as a JSON file and import it on any device — Mac, iPad, another phone.</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-icon">🏍️</div>
+          <div class="step-text">
+            <h4>Open MotoFuel → tap your bike</h4>
+            <p>Go to the bike detail screen.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-icon">📤</div>
+          <div class="step-text">
+            <h4>Tap the export button</h4>
+            <p>Scroll to the bottom action buttons and tap the export icon.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-icon">📄</div>
+          <div class="step-text">
+            <h4>Choose JSON format</h4>
+            <p>Select JSON when asked. This gives you the full data including all fill-ups, tires and rides.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-icon">✈️</div>
+          <div class="step-text">
+            <h4>AirDrop or save the file</h4>
+            <p>AirDrop it to your Mac, save to Files, or send via Mail. Your choice.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-icon">🌐</div>
+          <div class="step-text">
+            <h4>Go to motofuel.app/dashboard</h4>
+            <p>Click Browse Files and pick your JSON file. Dashboard loads instantly.</p>
+          </div>
+        </div>
+      </div>
+      <div class="tip">
+        <div class="tip-icon">💡</div>
+        <p><strong>Want all bikes on one dashboard?</strong> Export each bike separately and import them one by one — the dashboard adds a new tab for each import.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRIVACY -->
+  <div class="method">
+    <div class="method-header">
+      <div class="method-num">🔒</div>
+      <div class="method-title">Your data stays yours</div>
+    </div>
+    <div class="method-body">
+      <div class="steps">
+        <div class="step">
+          <div class="step-icon">🚫</div>
+          <div class="step-text">
+            <h4>Nothing goes to a server</h4>
+            <p>Your ride data never leaves your device or browser. We don't store anything, ever.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-icon">🔐</div>
+          <div class="step-text">
+            <h4>Saved in your browser only</h4>
+            <p>Dashboard saves your data in your browser's local storage — invisible to anyone else, including us.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-icon">🗑️</div>
+          <div class="step-text">
+            <h4>Delete it anytime</h4>
+            <p>Tap "Import new file" on the dashboard to clear everything and start fresh.</p>
+          </div>
+        </div>
+      </div>
+      <div class="warning">
+        <div class="tip-icon">⚠️</div>
+        <p><strong>One device = one dashboard.</strong> Your Mac and your iPhone have separate browsers — data imported on one doesn't appear on the other. This will be fixed in a future update with account sync.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAQ -->
+  <div class="faq">
+    <h2>FAQs</h2>
+
+    <div class="faq-item">
+      <div class="faq-q">My dashboard is empty when I open it again</div>
+      <div class="faq-a">This happens if you cleared your browser cache or are using a different browser/device. Just import your data again — it only takes a few seconds.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">I have two bikes — can I see them both?</div>
+      <div class="faq-a">Yes. Use "Open in Dashboard" or import the JSON for each bike separately. The dashboard shows a tab for each bike with its own colour theme.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">Can other riders see my data?</div>
+      <div class="faq-a">No. Your data only exists in your browser. Nobody else can see it — not other riders, not us.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">Why is my economy chart empty?</div>
+      <div class="faq-a">Economy is calculated between fill-ups. You need at least two non-partial fill-ups for the chart to show data. Baseline fill-ups are excluded.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">Does it work on my Mac?</div>
+      <div class="faq-a">Yes — export your JSON from the app, AirDrop it to your Mac, then import it at motofuel.app/dashboard in any browser.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">Can I see all my bikes together on the Mac and phone?</div>
+      <div class="faq-a">Not yet — that requires account sync which is coming in a future update. For now each device has its own dashboard.</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="cta">
+  <h2>Ready to see your data?</h2>
+  <p>Takes less than 30 seconds. No signup. No nonsense.</p>
+  <a href="/dashboard.html" class="btn">📊 Open My Dashboard</a>
+  <a href="/" class="btn btn-outline">← Back to MotoFuel</a>
+</div>
+
+</body>
+</html>
