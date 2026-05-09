@@ -256,7 +256,7 @@ canvas { max-height: 250px; }
   </div>
   <div class="nav-right">
     <button class="nav-btn" id="reset-btn" style="display:none" onclick="resetDashboard()">⟳ Import new file</button>
-    <a href="/" class="nav-btn">motofuel.app</a>
+    <a href="/dashboard-guide.html" class="nav-btn" style="background:var(--brand);color:white;border-color:var(--brand)">❓ How to use this</a><a href="/" class="nav-btn">motofuel.app</a>
   </div>
 </nav>
 
@@ -273,7 +273,13 @@ canvas { max-height: 250px; }
     <button onclick="document.getElementById('file-input').click()" style="margin-top:1.5rem;background:var(--brand);color:white;border:none;padding:0.7rem 1.8rem;border-radius:6px;font-size:1rem;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif;">Browse Files</button>
   </div>
 
-  <div class="how-to">
+  <a href="/dashboard-guide.html" style="display:block;margin-top:1.5rem;margin-bottom:0;background:rgba(224,92,0,0.1);border:1px solid rgba(224,92,0,0.3);border-radius:10px;padding:1rem 1.5rem;text-decoration:none;color:var(--text);text-align:center;transition:all 0.2s;">
+  <div style="font-size:1.5rem;margin-bottom:0.3rem">❓</div>
+  <div style="font-weight:700;color:var(--brand);font-family:Barlow Condensed,sans-serif;font-size:1.2rem;letter-spacing:0.05em">HOW DOES THIS WORK?</div>
+  <div style="color:var(--muted);font-size:0.85rem;margin-top:0.2rem">Step by step guide — takes 30 seconds to read</div>
+</a>
+
+<div class="how-to" style="margin-top:1.5rem">
     <h3>📱 How to export from the app</h3>
     <ol>
       <li>Open <strong>MotoFuel</strong> on your iPhone</li>
