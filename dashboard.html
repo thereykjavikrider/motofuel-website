@@ -386,25 +386,30 @@ window.addEventListener('load', () => {
 
 function normaliseData(raw) {
   let bikes = [];
-  // MotoFuel export format: {bike: {...}, fillups: [...]}
-  if (raw.bike && raw.fillups) {
-    const bike = { ...raw.bike, fillups: raw.fillups, tires: raw.tires || [], rides: raw.rides || [] };
-    bikes = [bike];
-  } else if (Array.isArray(raw)) {
-    bikes = raw;
-  } else if (raw.bikes) {
-    bikes = raw.bikes;
-  } else if (raw.make || raw.model || raw.fillups) {
-    bikes = [raw];
+
+  // All bikes export: {bikes: [{bike:{}, fillups:[], rides:[], wheel_sets:[]}, ...]}
+  if (raw.bikes && Array.isArray(raw.bikes)) {
+    bikes = raw.bikes.map(b => {
+      if (b.bike) {
+        return { ...b.bike, fillups: b.fillups || [], rides: b.rides || [], wheel_sets: b.wheel_sets || [] };
+      }
+      return b;
+    });
   }
+  // Single bike export: {bike:{}, fillups:[], rides:[], wheel_sets:[]}
+  else if (raw.bike && raw.fillups) {
+    bikes = [{ ...raw.bike, fillups: raw.fillups, rides: raw.rides || [], wheel_sets: raw.wheel_sets || [] }];
+  }
+  else if (Array.isArray(raw)) { bikes = raw; }
+  else if (raw.make || raw.model || raw.fillups) { bikes = [raw]; }
 
   // Calculate economy and distance from odometer readings
   bikes = bikes.map(bike => {
     const fillups = (bike.fillups || []).map((f, i, arr) => {
-      const prev = arr.slice(0, i).reverse().find(p => !p.partial);
+      const prev = arr.slice(0, i).reverse().find(p => !p.partial && !p.baseline);
       let economy = null;
       let distance_km = null;
-      if (prev && !f.partial && f.odometer && prev.odometer) {
+      if (prev && !f.partial && !f.baseline && f.odometer && prev.odometer) {
         distance_km = f.odometer - prev.odometer;
         if (distance_km > 0 && f.litres > 0) {
           economy = (f.litres / distance_km) * 100;
@@ -469,7 +474,7 @@ function renderBike(idx) {
   if (!bike) return;
   const theme = getTheme(bike.make);
   const fillups = bike.fillups || [];
-  const tires = bike.tires || bike.wheel_sets || [];
+  const tires = bike.wheel_sets || bike.tires || [];
   const rides = bike.rides || [];
 
   // Destroy old charts
@@ -718,42 +723,50 @@ function renderRides(rides, theme) {
   return `<div style="margin-bottom:1.5rem"><div class="section-title" style="color:${theme.color}">🏍️ Ride History</div><div class="ride-grid">${cards}</div></div>`;
 }
 
-function renderTires(tires, theme) {
-  if (!tires.length) return '';
-  // Flatten if wheel_sets with tires inside
+function renderTires(wheelSets, theme) {
+  if (!wheelSets || !wheelSets.length) return '';
+
+  // Flatten all tires from all wheel sets
   let allTires = [];
-  tires.forEach(t => {
-    if (t.tires) allTires = allTires.concat(t.tires);
-    else allTires.push(t);
+  wheelSets.forEach(ws => {
+    const tires = (ws.tires || []).map(t => ({ ...t, wheel_set: ws.name || '' }));
+    allTires = allTires.concat(tires);
   });
   if (!allTires.length) return '';
 
-  const hof = allTires.filter(t => t.retired || t.km_ridden > 5000).sort((a,b) => (b.km_ridden||0) - (a.km_ridden||0)).slice(0,4);
   const active = allTires.filter(t => !t.retired);
+  const hof = allTires.filter(t => t.retired).sort((a,b) => (b.km_ridden||0) - (a.km_ridden||0)).slice(0,6);
 
-  let html = `<div style="margin-bottom:1.5rem"><div class="section-title" style="color:${theme.color}">🛞 Tires</div>`;
+  let html = `<div style="margin-bottom:1.5rem"><div class="section-title" style="color:${theme.color}">🛞 Tire Tracker</div>`;
 
-  if (active.length) {
-    html += `<div style="margin-bottom:1rem;color:var(--muted);font-size:0.8rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase">Active</div>
+  // Wheel sets grouped
+  wheelSets.forEach(ws => {
+    if (!ws.tires || !ws.tires.length) return;
+    const activeTires = ws.tires.filter(t => !t.retired);
+    if (!activeTires.length) return;
+    html += `<div style="margin-bottom:0.5rem;color:var(--muted);font-size:0.8rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase">${ws.name || 'Wheel Set'}</div>
     <div class="tire-grid" style="margin-bottom:1.5rem">` +
-    active.map(t => `<div class="tire-card">
+    activeTires.map(t => `<div class="tire-card">
       <h4>${t.brand || ''} ${t.model || ''}</h4>
       <div class="tire-detail">${t.position || ''} · ${t.size || ''}</div>
       <div class="tire-km" style="color:${theme.color}">${(t.km_ridden||0).toLocaleString()} km</div>
+      ${t.mounted_at ? `<div style="color:var(--muted);font-size:0.75rem;margin-top:0.3rem">Since ${t.mounted_at}</div>` : ''}
       <span class="tire-status active">Active</span>
     </div>`).join('') + '</div>';
-  }
+  });
 
   if (hof.length) {
     html += `<div style="margin-bottom:1rem;color:var(--muted);font-size:0.8rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase">🏆 Hall of Fame</div>
     <div class="hof-grid">` +
     hof.map((t, i) => {
-      const trophies = ['🏆','🥈','🥉','🏅'];
+      const trophies = ['🏆','🥈','🥉','🏅','🏅','🏅'];
       return `<div class="hof-card" ${i===0?`style="border-color:${theme.color}40"`:''}>
         <div class="hof-rank" ${i===0?`style="color:${theme.color}"`:''}>${i===0?'👑 Champion':'#'+(i+1)}</div>
         <div class="hof-trophy">${trophies[i]||'🏅'}</div>
         <div class="hof-name">${t.brand||''} ${t.model||''}</div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-bottom:0.3rem">${t.position||''} · ${t.wheel_set||''}</div>
         <div class="hof-km" style="color:${theme.color}">${(t.km_ridden||0).toLocaleString()} km</div>
+        ${t.retired_at ? `<div style="color:var(--muted);font-size:0.7rem;margin-top:0.3rem">${t.mounted_at} → ${t.retired_at}</div>` : ''}
       </div>`;
     }).join('') + '</div>';
   }
