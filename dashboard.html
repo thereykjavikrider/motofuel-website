@@ -255,7 +255,7 @@ canvas { max-height: 250px; }
     <span class="nav-sub">Dashboard</span>
   </div>
   <div class="nav-right">
-    <button class="nav-btn" id="reset-btn" style="display:none" onclick="resetDashboard()">← Import new file</button>
+    <button class="nav-btn" id="reset-btn" style="display:none" onclick="resetDashboard()">⟳ Import new file</button>
     <a href="/" class="nav-btn">motofuel.app</a>
   </div>
 </nav>
@@ -347,6 +347,41 @@ function handleFile(file) {
   reader.readAsText(file);
 }
 
+// ── OPTION C: URL HASH IMPORT ─────────────────────────────────────
+function checkUrlHash() {
+  const hash = window.location.hash.slice(1);
+  if (!hash) return false;
+  try {
+    // Try base64 decode first
+    let json;
+    try {
+      json = atob(hash);
+    } catch(e) {
+      json = decodeURIComponent(hash);
+    }
+    const data = JSON.parse(json);
+    allData = normaliseData(data);
+    showDashboard();
+    return true;
+  } catch(err) {
+    console.error('Could not parse URL hash data:', err);
+    return false;
+  }
+}
+
+// Check on load — URL hash takes priority, then localStorage
+window.addEventListener('load', () => {
+  if (!checkUrlHash()) {
+    try {
+      const saved = localStorage.getItem('mf_dashboard_data');
+      if (saved) {
+        allData = JSON.parse(saved);
+        showDashboard();
+      }
+    } catch(e) {}
+  }
+});
+
 function normaliseData(raw) {
   let bikes = [];
   // MotoFuel export format: {bike: {...}, fillups: [...]}
@@ -383,6 +418,7 @@ function normaliseData(raw) {
 
 function resetDashboard() {
   allData = null;
+  localStorage.removeItem('mf_dashboard_data');
   document.getElementById('import-screen').style.display = 'flex';
   document.getElementById('dashboard').style.display = 'none';
   document.getElementById('reset-btn').style.display = 'none';
@@ -393,6 +429,8 @@ function resetDashboard() {
 
 // ── SHOW DASHBOARD ────────────────────────────────────────────────
 function showDashboard() {
+  // Save to localStorage for next visit
+  try { localStorage.setItem('mf_dashboard_data', JSON.stringify(allData)); } catch(e) {}
   document.getElementById('import-screen').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
   document.getElementById('reset-btn').style.display = 'inline-block';
