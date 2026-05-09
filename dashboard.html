@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My MotoFuel Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --brand: #e05c00;
+  --brand-dim: #b84d00;
+  --brand-glow: rgba(224,92,0,0.15);
+  --black: #0a0a0a;
+  --dark: #111111;
+  --card: #1a1a1a;
+  --card2: #222222;
+  --border: #2a2a2a;
+  --text: #f0f0f0;
+  --muted: #888888;
+  --green: #22c55e;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--black);
+  color: var(--text);
+  font-family: 'Barlow', sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* NAV */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  padding: 1rem 2rem;
+  display: flex; align-items: center; justify-content: space-between;
+  background: rgba(10,10,10,0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+.nav-logo { font-family: 'Barlow Condensed', sans-serif; font-size: 1.4rem; font-weight: 900; color: var(--brand); text-decoration: none; }
+.nav-sub { color: var(--muted); font-size: 0.8rem; margin-left: 0.5rem; }
+.nav-right { display: flex; gap: 1rem; align-items: center; }
+.nav-btn { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-family: 'Barlow', sans-serif; transition: all 0.2s; }
+.nav-btn:hover { border-color: var(--brand); color: var(--brand); }
+.nav-btn.active { background: var(--brand); border-color: var(--brand); color: white; }
+
+/* IMPORT SCREEN */
+#import-screen {
+  min-height: 100vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 6rem 2rem 4rem;
+  text-align: center;
+}
+
+.import-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: clamp(2.5rem, 6vw, 5rem);
+  font-weight: 900; margin-bottom: 1rem;
+}
+.import-title span { color: var(--brand); }
+.import-sub { color: var(--muted); font-size: 1.1rem; max-width: 500px; margin: 0 auto 3rem; }
+
+.drop-zone {
+  width: 100%; max-width: 500px;
+  border: 2px dashed var(--border);
+  border-radius: 16px; padding: 4rem 2rem;
+  cursor: pointer; transition: all 0.2s;
+  background: var(--card);
+  position: relative;
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--brand);
+  background: rgba(224,92,0,0.05);
+}
+.drop-icon { font-size: 3rem; margin-bottom: 1rem; }
+.drop-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+.drop-sub { color: var(--muted); font-size: 0.9rem; }
+.drop-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+
+.how-to {
+  margin-top: 3rem; max-width: 500px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 1.5rem; text-align: left;
+}
+.how-to h3 { font-family: 'Barlow Condensed', sans-serif; font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; color: var(--brand); }
+.how-to ol { padding-left: 1.2rem; color: var(--muted); font-size: 0.9rem; }
+.how-to li { margin-bottom: 0.5rem; }
+.how-to li strong { color: var(--text); }
+
+/* DASHBOARD */
+#dashboard { display: none; padding-top: 4.5rem; }
+
+/* BIKE TABS */
+.bike-tabs {
+  padding: 1rem 2rem 0;
+  display: flex; gap: 0.5rem; overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  background: var(--dark);
+}
+.bike-tab {
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer; font-weight: 600;
+  font-size: 0.9rem; white-space: nowrap;
+  border: 1px solid transparent;
+  border-bottom: none;
+  transition: all 0.2s;
+  color: var(--muted);
+  background: transparent;
+  font-family: 'Barlow', sans-serif;
+}
+.bike-tab.active {
+  color: white;
+  border-color: var(--border);
+  border-bottom-color: transparent;
+  margin-bottom: -1px;
+}
+.bike-tab:hover { color: var(--text); }
+
+/* BIKE HEADER */
+.bike-header {
+  padding: 2rem;
+  border-bottom: 1px solid var(--border);
+  position: relative; overflow: hidden;
+}
+.bike-header::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  opacity: 0.08;
+  pointer-events: none;
+}
+.bike-header-content { position: relative; z-index: 1; }
+.bike-make { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 0.3rem; }
+.bike-name { font-family: 'Barlow Condensed', sans-serif; font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 900; line-height: 1; margin-bottom: 0.5rem; }
+.bike-model { color: var(--muted); font-size: 1rem; margin-bottom: 1.5rem; }
+
+/* STATS ROW */
+.stats-row {
+  display: flex; gap: 1rem; flex-wrap: wrap;
+}
+.stat-card {
+  background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px; padding: 1rem 1.5rem;
+  min-width: 140px;
+}
+.stat-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.3rem; }
+.stat-value { font-family: 'Barlow Condensed', sans-serif; font-size: 2rem; font-weight: 900; line-height: 1; }
+
+/* CONTENT */
+.dashboard-content { padding: 2rem; max-width: 1200px; }
+
+.section-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.5rem; font-weight: 900;
+  margin-bottom: 1rem; letter-spacing: 0.02em;
+}
+
+.chart-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+.chart-card h3 { font-family: 'Barlow Condensed', sans-serif; font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
+
+.charts-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 1.5rem; margin-bottom: 1.5rem;
+}
+@media (max-width: 768px) { .charts-grid { grid-template-columns: 1fr; } }
+
+/* FILLUP TABLE */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+th { text-align: left; padding: 0.6rem 1rem; color: var(--muted); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+td { padding: 0.7rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.04); }
+tr:hover td { background: rgba(255,255,255,0.02); }
+.economy-cell { font-weight: 700; font-family: 'Barlow Condensed', sans-serif; font-size: 1rem; }
+
+/* RIDING STYLE */
+.style-bars { display: flex; flex-direction: column; gap: 0.8rem; }
+.style-bar-row { display: flex; align-items: center; gap: 1rem; }
+.style-bar-label { width: 80px; font-size: 0.85rem; color: var(--muted); }
+.style-bar-track { flex: 1; background: var(--card2); border-radius: 4px; height: 8px; overflow: hidden; }
+.style-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+.style-bar-pct { width: 40px; text-align: right; font-size: 0.85rem; font-weight: 600; }
+
+/* TIRE SECTION */
+.tire-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+.tire-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem; }
+.tire-card h4 { font-weight: 600; margin-bottom: 0.3rem; }
+.tire-detail { color: var(--muted); font-size: 0.8rem; margin-bottom: 0.8rem; }
+.tire-km { font-family: 'Barlow Condensed', sans-serif; font-size: 1.8rem; font-weight: 900; }
+.tire-status { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 3px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin-top: 0.3rem; }
+.tire-status.active { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+.tire-status.retired { background: rgba(136,136,136,0.15); color: var(--muted); border: 1px solid rgba(136,136,136,0.3); }
+
+/* HALL OF FAME */
+.hof-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
+.hof-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; text-align: center; }
+.hof-rank { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.5rem; }
+.hof-trophy { font-size: 2rem; margin-bottom: 0.5rem; }
+.hof-name { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.3rem; }
+.hof-km { font-family: 'Barlow Condensed', sans-serif; font-size: 2rem; font-weight: 900; }
+
+/* RIDE SECTION */
+.ride-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+.ride-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem; }
+.ride-date { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.5rem; }
+.ride-stats { display: flex; gap: 1rem; flex-wrap: wrap; }
+.ride-stat { text-align: center; }
+.ride-stat-val { font-family: 'Barlow Condensed', sans-serif; font-size: 1.4rem; font-weight: 900; line-height: 1; }
+.ride-stat-lbl { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* EMPTY STATE */
+.empty { text-align: center; padding: 3rem; color: var(--muted); }
+.empty-icon { font-size: 3rem; margin-bottom: 1rem; }
+
+/* MANUFACTURER THEMES */
+.theme-bmw { --brand: #0066CC; --brand-glow: rgba(0,102,204,0.15); }
+.theme-honda { --brand: #CC0000; --brand-glow: rgba(204,0,0,0.15); }
+.theme-kawasaki { --brand: #00A651; --brand-glow: rgba(0,166,81,0.15); }
+.theme-yamaha { --brand: #002D72; --brand-glow: rgba(0,45,114,0.15); }
+.theme-ducati { --brand: #CC0000; --brand-glow: rgba(204,0,0,0.15); }
+.theme-ktm { --brand: #FF6600; --brand-glow: rgba(255,102,0,0.15); }
+.theme-triumph { --brand: #C5A028; --brand-glow: rgba(197,160,40,0.15); }
+.theme-harley { --brand: #FF6600; --brand-glow: rgba(255,102,0,0.15); }
+.theme-suzuki { --brand: #004B93; --brand-glow: rgba(0,75,147,0.15); }
+.theme-aprilia { --brand: #C00000; --brand-glow: rgba(192,0,0,0.15); }
+.theme-royalenfield { --brand: #8B0000; --brand-glow: rgba(139,0,0,0.15); }
+.theme-default { --brand: #e05c00; --brand-glow: rgba(224,92,0,0.15); }
+
+/* UTILS */
+.badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 3px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+.badge-ironbutt { background: rgba(224,92,0,0.15); color: var(--brand); border: 1px solid rgba(224,92,0,0.3); }
+
+.no-data { color: var(--muted); font-style: italic; font-size: 0.85rem; }
+
+canvas { max-height: 250px; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div style="display:flex;align-items:center;">
+    <a href="/" class="nav-logo">MotoFuel</a>
+    <span class="nav-sub">Dashboard</span>
+  </div>
+  <div class="nav-right">
+    <button class="nav-btn" id="reset-btn" style="display:none" onclick="resetDashboard()">← Import new file</button>
+    <a href="/" class="nav-btn">motofuel.app</a>
+  </div>
+</nav>
+
+<!-- IMPORT SCREEN -->
+<div id="import-screen">
+  <h1 class="import-title">My <span>MotoFuel</span><br>Dashboard</h1>
+  <p class="import-sub">Import your exported data from the MotoFuel app to see your full riding history, charts and statistics.</p>
+
+  <div class="drop-zone" id="drop-zone">
+    <input type="file" class="drop-input" id="file-input" accept=".json">
+    <div class="drop-icon">📂</div>
+    <div class="drop-title">Drop your MotoFuel export here</div>
+    <div class="drop-sub">or click to browse · JSON format</div>
+  </div>
+
+  <div class="how-to">
+    <h3>📱 How to export from the app</h3>
+    <ol>
+      <li>Open <strong>MotoFuel</strong> on your iPhone</li>
+      <li>Tap your bike → scroll down to the action buttons</li>
+      <li>Tap the <strong>export icon</strong> (📤)</li>
+      <li>Choose <strong>JSON</strong> format</li>
+      <li>Save or AirDrop the file to your Mac</li>
+      <li>Drop it here!</li>
+    </ol>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <div class="bike-tabs" id="bike-tabs"></div>
+  <div id="bike-content"></div>
+</div>
+
+<script>
+// ── MANUFACTURER THEMES ──────────────────────────────────────────
+const THEMES = {
+  bmw:         { class: 'theme-bmw',         color: '#0066CC', emoji: '🔵', bg: 'linear-gradient(135deg, #001a3d, #003070)' },
+  honda:       { class: 'theme-honda',       color: '#CC0000', emoji: '🔴', bg: 'linear-gradient(135deg, #3d0000, #700000)' },
+  kawasaki:    { class: 'theme-kawasaki',    color: '#00A651', emoji: '🟢', bg: 'linear-gradient(135deg, #002d15, #005528)' },
+  yamaha:      { class: 'theme-yamaha',      color: '#002D72', emoji: '🔵', bg: 'linear-gradient(135deg, #000d20, #001840)' },
+  ducati:      { class: 'theme-ducati',      color: '#CC0000', emoji: '🔴', bg: 'linear-gradient(135deg, #3d0000, #700000)' },
+  ktm:         { class: 'theme-ktm',         color: '#FF6600', emoji: '🟠', bg: 'linear-gradient(135deg, #2d1500, #5a2900)' },
+  triumph:     { class: 'theme-triumph',     color: '#C5A028', emoji: '🟡', bg: 'linear-gradient(135deg, #1a1500, #352b00)' },
+  'harley-davidson': { class: 'theme-harley', color: '#FF6600', emoji: '🟠', bg: 'linear-gradient(135deg, #1a0a00, #2d1500)' },
+  harley:      { class: 'theme-harley',      color: '#FF6600', emoji: '🟠', bg: 'linear-gradient(135deg, #1a0a00, #2d1500)' },
+  suzuki:      { class: 'theme-suzuki',      color: '#004B93', emoji: '🔵', bg: 'linear-gradient(135deg, #001428, #002850)' },
+  aprilia:     { class: 'theme-aprilia',     color: '#C00000', emoji: '🔴', bg: 'linear-gradient(135deg, #300000, #600000)' },
+  'royal enfield': { class: 'theme-royalenfield', color: '#8B0000', emoji: '🔴', bg: 'linear-gradient(135deg, #1a0000, #3d0000)' },
+};
+
+function getTheme(make) {
+  if (!make) return { class: 'theme-default', color: '#e05c00', emoji: '🏍️', bg: 'linear-gradient(135deg, #1a0a00, #2d1500)' };
+  const key = make.toLowerCase().trim();
+  for (const [k, v] of Object.entries(THEMES)) {
+    if (key.includes(k)) return v;
+  }
+  return { class: 'theme-default', color: '#e05c00', emoji: '🏍️', bg: 'linear-gradient(135deg, #1a0a00, #2d1500)' };
+}
+
+// ── DATA ─────────────────────────────────────────────────────────
+let allData = null;
+let currentBikeIdx = 0;
+let chartInstances = {};
+
+// ── FILE IMPORT ───────────────────────────────────────────────────
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
+
+function handleFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      allData = normaliseData(data);
+      showDashboard();
+    } catch(err) {
+      alert('Could not read this file. Please export JSON from the MotoFuel app and try again.');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function normaliseData(raw) {
+  // Handle both array of bikes and {bikes: [...]} format
+  if (Array.isArray(raw)) return { bikes: raw };
+  if (raw.bikes) return raw;
+  // Single bike object
+  if (raw.make || raw.model || raw.fillups) return { bikes: [raw] };
+  return { bikes: [] };
+}
+
+function resetDashboard() {
+  allData = null;
+  document.getElementById('import-screen').style.display = 'flex';
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('reset-btn').style.display = 'none';
+  fileInput.value = '';
+  Object.values(chartInstances).forEach(c => c.destroy());
+  chartInstances = {};
+}
+
+// ── SHOW DASHBOARD ────────────────────────────────────────────────
+function showDashboard() {
+  document.getElementById('import-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  document.getElementById('reset-btn').style.display = 'inline-block';
+  renderBikeTabs();
+  renderBike(0);
+}
+
+function renderBikeTabs() {
+  const tabs = document.getElementById('bike-tabs');
+  tabs.innerHTML = '';
+  allData.bikes.forEach((bike, i) => {
+    const theme = getTheme(bike.make);
+    const tab = document.createElement('button');
+    tab.className = 'bike-tab' + (i === 0 ? ' active' : '');
+    tab.style.borderColor = i === 0 ? theme.color : 'transparent';
+    tab.style.color = i === 0 ? theme.color : '';
+    tab.innerHTML = `${theme.emoji} ${bike.name || bike.make || 'Bike ' + (i+1)}`;
+    tab.onclick = () => { currentBikeIdx = i; renderBike(i); updateTabs(); };
+    tabs.appendChild(tab);
+  });
+}
+
+function updateTabs() {
+  document.querySelectorAll('.bike-tab').forEach((tab, i) => {
+    const theme = getTheme(allData.bikes[i].make);
+    tab.classList.toggle('active', i === currentBikeIdx);
+    tab.style.borderColor = i === currentBikeIdx ? theme.color : 'transparent';
+    tab.style.color = i === currentBikeIdx ? theme.color : '';
+  });
+}
+
+function renderBike(idx) {
+  const bike = allData.bikes[idx];
+  if (!bike) return;
+  const theme = getTheme(bike.make);
+  const fillups = bike.fillups || [];
+  const tires = bike.tires || bike.wheel_sets || [];
+  const rides = bike.rides || [];
+
+  // Destroy old charts
+  Object.values(chartInstances).forEach(c => c.destroy());
+  chartInstances = {};
+
+  const content = document.getElementById('bike-content');
+  content.className = theme.class;
+  content.innerHTML = renderBikeHeader(bike, theme, fillups, rides) +
+    '<div class="dashboard-content">' +
+    renderEconomyChart(fillups, theme) +
+    renderCostChart(fillups, theme) +
+    renderRidingStyle(fillups, theme) +
+    renderFillupTable(fillups, theme) +
+    renderRides(rides, theme) +
+    renderTires(tires, theme) +
+    '</div>';
+
+  // Init charts after DOM
+  setTimeout(() => {
+    initEconomyChart(fillups, theme);
+    initCostChart(fillups, theme);
+  }, 50);
+}
+
+function renderBikeHeader(bike, theme, fillups, rides) {
+  const validFillups = fillups.filter(f => f.economy != null && f.economy > 0 && !f.baseline);
+  const avgEconomy = validFillups.length ? (validFillups.reduce((s,f) => s + f.economy, 0) / validFillups.length).toFixed(1) : '—';
+  const totalKm = fillups.length ? Math.max(...fillups.map(f => f.odometer || 0)) - Math.min(...fillups.map(f => f.odometer || 0)) : 0;
+  const totalCost = fillups.reduce((s,f) => s + (f.total_cost || 0), 0);
+  const currency = bike.currency || 'kr';
+
+  return `
+  <div class="bike-header" style="background: ${theme.bg};">
+    <div class="bike-header::before" style="background:${theme.color}"></div>
+    <div class="bike-header-content">
+      <div class="bike-make" style="color:${theme.color}">${theme.emoji} ${bike.make || 'Unknown'}</div>
+      <div class="bike-name">${bike.name || bike.model || 'My Bike'}</div>
+      <div class="bike-model">${bike.model || ''} · ${bike.year || ''}</div>
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">Avg Economy</div>
+          <div class="stat-value" style="color:${theme.color}">${avgEconomy} L/100km</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Tracked</div>
+          <div class="stat-value">${totalKm.toLocaleString()} km</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Fill-ups</div>
+          <div class="stat-value">${fillups.length}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Spent</div>
+          <div class="stat-value">${totalCost.toLocaleString()} ${currency}</div>
+        </div>
+        ${rides.length ? `<div class="stat-card"><div class="stat-label">Rides</div><div class="stat-value">${rides.length}</div></div>` : ''}
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderEconomyChart(fillups, theme) {
+  return `<div class="chart-card"><h3>⛽ Fuel Economy — L/100km</h3><canvas id="economy-chart"></canvas></div>`;
+}
+
+function renderCostChart(fillups, theme) {
+  return `<div class="charts-grid">
+    <div class="chart-card"><h3>💰 Cost per Fill-up</h3><canvas id="cost-chart"></canvas></div>
+    <div class="chart-card"><h3>🛣️ Distance per Fill-up</h3><canvas id="dist-chart"></canvas></div>
+  </div>`;
+}
+
+function initEconomyChart(fillups, theme) {
+  const valid = fillups.filter(f => f.economy > 0 && !f.baseline).slice(-30);
+  if (!valid.length) return;
+  const ctx = document.getElementById('economy-chart');
+  if (!ctx) return;
+  chartInstances['economy'] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: valid.map(f => f.date ? f.date.substring(0,10) : ''),
+      datasets: [{
+        label: 'L/100km',
+        data: valid.map(f => f.economy),
+        borderColor: theme.color,
+        backgroundColor: theme.color + '20',
+        tension: 0.4,
+        fill: true,
+        pointRadius: 4,
+        pointBackgroundColor: theme.color,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#666', maxTicksLimit: 8, font: { size: 11 } }, grid: { color: '#1a1a1a' } },
+        y: { ticks: { color: '#666', font: { size: 11 } }, grid: { color: '#1a1a1a' } }
+      }
+    }
+  });
+
+  // Also render dist chart
+  const ctxD = document.getElementById('dist-chart');
+  if (ctxD) {
+    chartInstances['dist'] = new Chart(ctxD, {
+      type: 'bar',
+      data: {
+        labels: valid.map(f => f.date ? f.date.substring(0,10) : ''),
+        datasets: [{
+          label: 'km',
+          data: valid.map(f => f.distance_km || 0),
+          backgroundColor: theme.color + '60',
+          borderColor: theme.color,
+          borderWidth: 1,
+          borderRadius: 4,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#666', maxTicksLimit: 8, font: { size: 11 } }, grid: { color: '#1a1a1a' } },
+          y: { ticks: { color: '#666', font: { size: 11 } }, grid: { color: '#1a1a1a' } }
+        }
+      }
+    });
+  }
+}
+
+function initCostChart(fillups, theme) {
+  const valid = fillups.filter(f => f.total_cost > 0).slice(-30);
+  if (!valid.length) return;
+  const ctx = document.getElementById('cost-chart');
+  if (!ctx) return;
+  chartInstances['cost'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: valid.map(f => f.date ? f.date.substring(0,10) : ''),
+      datasets: [{
+        label: 'Cost',
+        data: valid.map(f => f.total_cost),
+        backgroundColor: theme.color + '80',
+        borderColor: theme.color,
+        borderWidth: 1,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#666', maxTicksLimit: 8, font: { size: 11 } }, grid: { color: '#1a1a1a' } },
+        y: { ticks: { color: '#666', font: { size: 11 } }, grid: { color: '#1a1a1a' } }
+      }
+    }
+  });
+}
+
+function renderRidingStyle(fillups, theme) {
+  const totals = { road: 0, off: 0, town: 0, count: 0 };
+  fillups.forEach(f => {
+    if ((f.on_road_pct || 0) + (f.off_road_pct || 0) + (f.in_town_pct || 0) > 0) {
+      totals.road += f.on_road_pct || 0;
+      totals.off += f.off_road_pct || 0;
+      totals.town += f.in_town_pct || 0;
+      totals.count++;
+    }
+  });
+  if (!totals.count) return '';
+  const road = Math.round(totals.road / totals.count);
+  const off = Math.round(totals.off / totals.count);
+  const town = Math.round(totals.town / totals.count);
+  return `
+  <div class="chart-card">
+    <h3>🛣️ Riding Style Average</h3>
+    <div class="style-bars">
+      <div class="style-bar-row">
+        <span class="style-bar-label">On Road</span>
+        <div class="style-bar-track"><div class="style-bar-fill" style="width:${road}%;background:${theme.color}"></div></div>
+        <span class="style-bar-pct" style="color:${theme.color}">${road}%</span>
+      </div>
+      <div class="style-bar-row">
+        <span class="style-bar-label">Off Road</span>
+        <div class="style-bar-track"><div class="style-bar-fill" style="width:${off}%;background:#8b5cf6"></div></div>
+        <span class="style-bar-pct" style="color:#8b5cf6">${off}%</span>
+      </div>
+      <div class="style-bar-row">
+        <span class="style-bar-label">In Town</span>
+        <div class="style-bar-track"><div class="style-bar-fill" style="width:${town}%;background:#06b6d4"></div></div>
+        <span class="style-bar-pct" style="color:#06b6d4">${town}%</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderFillupTable(fillups, theme) {
+  if (!fillups.length) return '';
+  const sorted = [...fillups].reverse().slice(0, 50);
+  const rows = sorted.map(f => {
+    const economy = f.economy > 0 && !f.baseline
+      ? `<span class="economy-cell" style="color:${theme.color}">${f.economy.toFixed(1)} L/100km</span>`
+      : f.baseline ? '<span class="no-data">Baseline</span>' : '—';
+    const style = f.on_road_pct > 0 ? `${f.on_road_pct}% rd` : '';
+    return `<tr>
+      <td>${f.date ? f.date.substring(0,10) : '—'}</td>
+      <td>${f.odometer ? f.odometer.toLocaleString() + ' km' : '—'}</td>
+      <td>${f.litres ? f.litres.toFixed(2) + ' L' : '—'}</td>
+      <td>${f.total_cost ? f.total_cost.toLocaleString() : '—'}</td>
+      <td>${economy}</td>
+      <td><span style="color:var(--muted);font-size:0.8rem">${style}</span></td>
+    </tr>`;
+  }).join('');
+  return `
+  <div class="chart-card">
+    <h3>📋 Fill-up History (last 50)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Odometer</th><th>Litres</th><th>Cost</th><th>Economy</th><th>Style</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function renderRides(rides, theme) {
+  if (!rides.length) return '';
+  const sorted = [...rides].reverse().slice(0, 12);
+  const cards = sorted.map(r => {
+    const duration = r.duration_minutes ? formatDuration(r.duration_minutes) : '—';
+    const dist = r.distance_km ? r.distance_km.toFixed(0) + ' km' : '—';
+    const ironButt = r.is_iron_butt ? '<span class="badge badge-ironbutt">🏁 Iron Butt</span>' : '';
+    return `<div class="ride-card">
+      <div class="ride-date">${r.start_time ? new Date(r.start_time).toLocaleDateString() : '—'} ${ironButt}</div>
+      <div class="ride-stats">
+        <div class="ride-stat"><div class="ride-stat-val" style="color:${theme.color}">${dist}</div><div class="ride-stat-lbl">Distance</div></div>
+        <div class="ride-stat"><div class="ride-stat-val">${duration}</div><div class="ride-stat-lbl">Duration</div></div>
+        ${r.max_speed_kmh ? `<div class="ride-stat"><div class="ride-stat-val">${r.max_speed_kmh.toFixed(0)} km/h</div><div class="ride-stat-lbl">Max Speed</div></div>` : ''}
+        ${r.fillup_count ? `<div class="ride-stat"><div class="ride-stat-val">${r.fillup_count}</div><div class="ride-stat-lbl">Fill-ups</div></div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+  return `<div style="margin-bottom:1.5rem"><div class="section-title" style="color:${theme.color}">🏍️ Ride History</div><div class="ride-grid">${cards}</div></div>`;
+}
+
+function renderTires(tires, theme) {
+  if (!tires.length) return '';
+  // Flatten if wheel_sets with tires inside
+  let allTires = [];
+  tires.forEach(t => {
+    if (t.tires) allTires = allTires.concat(t.tires);
+    else allTires.push(t);
+  });
+  if (!allTires.length) return '';
+
+  const hof = allTires.filter(t => t.retired || t.km_ridden > 5000).sort((a,b) => (b.km_ridden||0) - (a.km_ridden||0)).slice(0,4);
+  const active = allTires.filter(t => !t.retired);
+
+  let html = `<div style="margin-bottom:1.5rem"><div class="section-title" style="color:${theme.color}">🛞 Tires</div>`;
+
+  if (active.length) {
+    html += `<div style="margin-bottom:1rem;color:var(--muted);font-size:0.8rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase">Active</div>
+    <div class="tire-grid" style="margin-bottom:1.5rem">` +
+    active.map(t => `<div class="tire-card">
+      <h4>${t.brand || ''} ${t.model || ''}</h4>
+      <div class="tire-detail">${t.position || ''} · ${t.size || ''}</div>
+      <div class="tire-km" style="color:${theme.color}">${(t.km_ridden||0).toLocaleString()} km</div>
+      <span class="tire-status active">Active</span>
+    </div>`).join('') + '</div>';
+  }
+
+  if (hof.length) {
+    html += `<div style="margin-bottom:1rem;color:var(--muted);font-size:0.8rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase">🏆 Hall of Fame</div>
+    <div class="hof-grid">` +
+    hof.map((t, i) => {
+      const trophies = ['🏆','🥈','🥉','🏅'];
+      return `<div class="hof-card" ${i===0?`style="border-color:${theme.color}40"`:''}>
+        <div class="hof-rank" ${i===0?`style="color:${theme.color}"`:''}>${i===0?'👑 Champion':'#'+(i+1)}</div>
+        <div class="hof-trophy">${trophies[i]||'🏅'}</div>
+        <div class="hof-name">${t.brand||''} ${t.model||''}</div>
+        <div class="hof-km" style="color:${theme.color}">${(t.km_ridden||0).toLocaleString()} km</div>
+      </div>`;
+    }).join('') + '</div>';
+  }
+
+  return html + '</div>';
+}
+
+function formatDuration(minutes) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+</script>
+</body>
+</html>
