@@ -82,7 +82,7 @@ nav {
 .drop-icon { font-size: 3rem; margin-bottom: 1rem; }
 .drop-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
 .drop-sub { color: var(--muted); font-size: 0.9rem; }
-.drop-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.drop-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; z-index: 10; }
 
 .how-to {
   margin-top: 3rem; max-width: 500px;
@@ -264,11 +264,12 @@ canvas { max-height: 250px; }
   <h1 class="import-title">My <span>MotoFuel</span><br>Dashboard</h1>
   <p class="import-sub">Import your exported data from the MotoFuel app to see your full riding history, charts and statistics.</p>
 
+  <input type="file" id="file-input" accept=".json" style="display:none">
   <div class="drop-zone" id="drop-zone">
-    <input type="file" class="drop-input" id="file-input" accept=".json">
     <div class="drop-icon">📂</div>
     <div class="drop-title">Drop your MotoFuel export here</div>
-    <div class="drop-sub">or click to browse · JSON format</div>
+    <div class="drop-sub">JSON format</div>
+    <button onclick="document.getElementById('file-input').click()" style="margin-top:1.5rem;background:var(--brand);color:white;border:none;padding:0.7rem 1.8rem;border-radius:6px;font-size:1rem;font-weight:700;cursor:pointer;font-family:'Barlow',sans-serif;">Browse Files</button>
   </div>
 
   <div class="how-to">
