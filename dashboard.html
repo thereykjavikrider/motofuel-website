@@ -743,14 +743,21 @@ function renderTires(wheelSets, theme) {
   wheelSets.forEach(ws => {
     const activeTires = (ws.tires || []).filter(t => !t.retired);
     if (!activeTires.length) return;
-    html += `<div style="margin-bottom:0.5rem;color:var(--muted);font-size:0.8rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase">${ws.name}</div>
+    const isMounted = ws.mounted === true;
+    const statusLabel = isMounted ? 'Mounted' : 'In Garage';
+    const statusColor = isMounted ? 'var(--green)' : 'var(--muted)';
+    const statusBg = isMounted ? 'rgba(34,197,94,0.15)' : 'rgba(136,136,136,0.1)';
+    const statusBorder = isMounted ? 'rgba(34,197,94,0.3)' : 'rgba(136,136,136,0.2)';
+    html += `<div style="margin-bottom:0.5rem;display:flex;align-items:center;gap:0.8rem;">
+      <span style="color:var(--muted);font-size:0.8rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase">${ws.name}</span>
+      <span style="background:${statusBg};border:1px solid ${statusBorder};color:${statusColor};font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:0.15rem 0.5rem;border-radius:3px">${statusLabel}</span>
+    </div>
     <div class="tire-grid" style="margin-bottom:1.5rem">` +
-    activeTires.map(t => `<div class="tire-card">
+    activeTires.map(t => `<div class="tire-card" style="${isMounted ? '' : 'opacity:0.7'}">
       <h4>${t.brand || ''} ${t.model || ''}</h4>
       <div class="tire-detail">${t.position || ''} · ${t.size || ''}</div>
       <div class="tire-km" style="color:${theme.color}">${(t.km_ridden||0).toLocaleString()} km</div>
       ${t.mounted_at ? `<div style="color:var(--muted);font-size:0.75rem;margin-top:0.3rem">Since ${t.mounted_at}</div>` : ''}
-      <span class="tire-status active">Active</span>
     </div>`).join('') + '</div>';
   });
 
