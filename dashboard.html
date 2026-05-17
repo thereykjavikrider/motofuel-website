@@ -95,7 +95,7 @@ nav {
 .how-to li strong { color: var(--text); }
 
 /* DASHBOARD */
-#dashboard { display: none; padding-top: 4.5rem; }
+#dashboard { display: none; }
 
 /* BIKE TABS */
 .bike-tabs {
@@ -244,6 +244,152 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 .no-data { color: var(--muted); font-style: italic; font-size: 0.85rem; }
 
 canvas { max-height: 250px; }
+
+/* APP LAYOUT */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  padding-top: 0;
+}
+
+.sidebar {
+  width: 260px;
+  min-width: 260px;
+  background: #111;
+  border-right: 1px solid #2a2a2a;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  overflow-y: auto;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem 0;
+}
+
+.sidebar-logo {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #e05c00;
+  padding: 0 1.5rem;
+  margin-bottom: 2rem;
+  text-decoration: none;
+  display: block;
+}
+
+.sidebar-bike {
+  margin-bottom: 0.25rem;
+}
+
+.sidebar-bike-btn {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0.6rem 1.5rem;
+  cursor: pointer;
+  font-family: 'Barlow', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #888;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  transition: color 0.15s;
+}
+.sidebar-bike-btn:hover { color: #f0f0f0; }
+.sidebar-bike-btn.active { color: var(--bike-color, #e05c00); }
+
+.sidebar-bike-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sidebar-sections {
+  display: none;
+  flex-direction: column;
+  margin-bottom: 0.5rem;
+}
+.sidebar-sections.open { display: flex; }
+
+.sidebar-section-btn {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0.45rem 1.5rem 0.45rem 3rem;
+  cursor: pointer;
+  font-family: 'Barlow', sans-serif;
+  font-size: 0.85rem;
+  color: #666;
+  transition: color 0.15s;
+}
+.sidebar-section-btn:hover { color: #f0f0f0; }
+.sidebar-section-btn.active {
+  color: var(--bike-color, #e05c00);
+  font-weight: 600;
+}
+
+.sidebar-bottom {
+  margin-top: auto;
+  padding: 1.5rem;
+  border-top: 1px solid #2a2a2a;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sidebar-action-btn {
+  background: none;
+  border: 1px solid #2a2a2a;
+  color: #666;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-family: 'Barlow', sans-serif;
+  text-align: left;
+  transition: all 0.15s;
+}
+.sidebar-action-btn:hover { border-color: #e05c00; color: #e05c00; }
+.sidebar-action-btn.danger:hover { border-color: #ef4444; color: #ef4444; }
+
+.main-panel {
+  margin-left: 260px;
+  flex: 1;
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+.section-panel { display: none; }
+.section-panel.active { display: block; }
+
+@keyframes section-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    position: relative;
+    width: 100%;
+    min-width: unset;
+    border-right: none;
+    border-bottom: 1px solid #2a2a2a;
+    padding: 0.75rem 0 0;
+    flex-direction: column;
+  }
+  .app-layout { flex-direction: column; }
+  .main-panel { margin-left: 0; padding: 1rem; }
+  .sidebar-logo { display: none; }
+  .sidebar-bike-btn { padding: 0.5rem 1rem; }
+  .sidebar-sections { flex-direction: row; overflow-x: auto; padding: 0.5rem 1rem; }
+  .sidebar-section-btn { padding: 0.4rem 1rem; white-space: nowrap; }
+}
 </style>
 </head>
 <body>
@@ -290,8 +436,10 @@ canvas { max-height: 250px; }
 
 <!-- DASHBOARD -->
 <div id="dashboard">
-  <div class="bike-tabs" id="bike-tabs"></div>
-  <div id="bike-content"></div>
+  <div class="app-layout">
+    <nav class="sidebar" id="sidebar"></nav>
+    <main class="main-panel" id="main-panel"></main>
+  </div>
 </div>
 
 <script>
@@ -323,6 +471,7 @@ function getTheme(make) {
 // ── DATA ─────────────────────────────────────────────────────────
 let allData = null;
 let currentBikeIdx = 0;
+let currentSection = 'fuel';
 let chartInstances = {};
 
 // ── FILE IMPORT ───────────────────────────────────────────────────
@@ -429,6 +578,7 @@ function resetDashboard() {
   document.getElementById('import-screen').style.display = 'flex';
   document.getElementById('dashboard').style.display = 'none';
   document.getElementById('reset-btn').style.display = 'none';
+  document.querySelector('nav').style.display = '';
   fileInput.value = '';
   Object.values(chartInstances).forEach(c => c.destroy());
   chartInstances = {};
@@ -436,37 +586,74 @@ function resetDashboard() {
 
 // ── SHOW DASHBOARD ────────────────────────────────────────────────
 function showDashboard() {
-  // Save to localStorage for next visit
   try { localStorage.setItem('mf_dashboard_data', JSON.stringify(allData)); } catch(e) {}
   document.getElementById('import-screen').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
-  document.getElementById('reset-btn').style.display = 'inline-block';
-  renderBikeTabs();
-  renderBike(0);
+  document.querySelector('nav').style.display = 'none';
+  currentBikeIdx = 0;
+  currentSection = 'fuel';
+  renderSidebar();
+  renderMainPanel(0, 'fuel');
 }
 
-function renderBikeTabs() {
-  const tabs = document.getElementById('bike-tabs');
-  tabs.innerHTML = '';
+function renderSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const sectionDefs = [
+    { key: 'fuel',        label: 'Fuel' },
+    { key: 'rides',       label: 'Rides' },
+    { key: 'consumables', label: 'Consumables' },
+    { key: 'tires',       label: 'Tires' },
+  ];
+
+  let html = `<a href="/" class="sidebar-logo">MotoFuel</a>`;
+
   allData.bikes.forEach((bike, i) => {
     const theme = getTheme(bike.make);
-    const tab = document.createElement('button');
-    tab.className = 'bike-tab' + (i === 0 ? ' active' : '');
-    tab.style.borderColor = i === 0 ? theme.color : 'transparent';
-    tab.style.color = i === 0 ? theme.color : '';
-    tab.innerHTML = `${theme.emoji} ${bike.name || bike.make || 'Bike ' + (i+1)}`;
-    tab.onclick = () => { currentBikeIdx = i; renderBike(i); updateTabs(); };
-    tabs.appendChild(tab);
+    const isActive = i === currentBikeIdx;
+    const name = bike.name || bike.make || 'Bike ' + (i + 1);
+
+    html += `<div class="sidebar-bike">
+      <button class="sidebar-bike-btn${isActive ? ' active' : ''}"
+        style="--bike-color:${theme.color}"
+        onclick="selectBike(${i})">
+        <span class="sidebar-bike-dot" style="background:${theme.color}"></span>
+        ${name}
+      </button>`;
+
+    if (isActive) {
+      html += `<div class="sidebar-sections open" style="--bike-color:${theme.color}">`;
+      sectionDefs.forEach(({ key, label }) => {
+        html += `<button class="sidebar-section-btn${currentSection === key ? ' active' : ''}"
+          style="--bike-color:${theme.color}"
+          onclick="selectSection('${key}')">
+          ${label}
+        </button>`;
+      });
+      html += `</div>`;
+    }
+
+    html += `</div>`;
   });
+
+  html += `<div class="sidebar-bottom">
+    <button class="sidebar-action-btn" onclick="resetDashboard()">Import new file</button>
+    <button class="sidebar-action-btn danger" onclick="forgetData()">Forget my data</button>
+  </div>`;
+
+  sidebar.innerHTML = html;
 }
 
-function updateTabs() {
-  document.querySelectorAll('.bike-tab').forEach((tab, i) => {
-    const theme = getTheme(allData.bikes[i].make);
-    tab.classList.toggle('active', i === currentBikeIdx);
-    tab.style.borderColor = i === currentBikeIdx ? theme.color : 'transparent';
-    tab.style.color = i === currentBikeIdx ? theme.color : '';
-  });
+function selectBike(i) {
+  currentBikeIdx = i;
+  currentSection = 'fuel';
+  renderSidebar();
+  renderMainPanel(i, 'fuel');
+}
+
+function selectSection(section) {
+  currentSection = section;
+  renderSidebar();
+  renderMainPanel(currentBikeIdx, section);
 }
 
 function renderBike(idx) {
@@ -498,6 +685,59 @@ function renderBike(idx) {
     initEconomyChart(fillups, theme);
     initCostChart(fillups, theme);
   }, 50);
+}
+
+function renderMainPanel(bikeIdx, section) {
+  const bike = allData.bikes[bikeIdx];
+  if (!bike) return;
+  const theme = getTheme(bike.make);
+  const fillups = bike.fillups || [];
+  const tires = bike.wheel_sets || bike.tires || [];
+  const rides = bike.rides || [];
+
+  Object.values(chartInstances).forEach(c => c.destroy());
+  chartInstances = {};
+
+  const panel = document.getElementById('main-panel');
+  panel.className = 'main-panel ' + theme.class;
+
+  let html = '';
+  if (section === 'fuel') {
+    html = renderBikeHeader(bike, theme, fillups, rides) +
+      '<div class="dashboard-content">' +
+      renderEconomyChart(fillups, theme) +
+      renderCostChart(fillups, theme) +
+      renderRidingStyle(fillups, theme) +
+      renderFillupTable(fillups, theme) +
+      '</div>';
+  } else if (section === 'rides') {
+    html = renderBikeHeader(bike, theme, fillups, rides) +
+      '<div class="dashboard-content">' +
+      renderRides(rides, theme) +
+      '</div>';
+  } else if (section === 'consumables') {
+    html = renderBikeHeader(bike, theme, fillups, rides) +
+      '<div class="dashboard-content">' +
+      '<div class="empty"><div class="empty-icon">🔧</div><p>Consumables coming in next update</p></div>' +
+      '</div>';
+  } else if (section === 'tires') {
+    html = renderBikeHeader(bike, theme, fillups, rides) +
+      '<div class="dashboard-content">' +
+      renderTires(tires, theme) +
+      '</div>';
+  }
+
+  panel.innerHTML = html;
+  panel.style.animation = 'none';
+  panel.offsetHeight;
+  panel.style.animation = 'section-fade 0.2s ease';
+
+  if (section === 'fuel') {
+    setTimeout(() => {
+      initEconomyChart(fillups, theme);
+      initCostChart(fillups, theme);
+    }, 50);
+  }
 }
 
 function renderBikeHeader(bike, theme, fillups, rides) {
@@ -783,6 +1023,12 @@ function formatDuration(minutes) {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function forgetData() {
+  if (confirm('This will clear all your data from this browser. Are you sure?')) {
+    resetDashboard();
+  }
 }
 </script>
 </body>
