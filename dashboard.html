@@ -705,6 +705,7 @@ function renderMainPanel(bikeIdx, section) {
   if (section === 'fuel') {
     html = renderBikeHeader(bike, theme, fillups, rides) +
       '<div class="dashboard-content">' +
+      renderFuelSummary(fillups, theme, bike.currency || 'kr') +
       renderEconomyChart(fillups, theme) +
       renderCostChart(fillups, theme) +
       renderRidingStyle(fillups, theme) +
@@ -745,7 +746,9 @@ function renderBikeHeader(bike, theme, fillups, rides) {
   const avgEconomy = validFillups.length ? (validFillups.reduce((s,f) => s + f.economy, 0) / validFillups.length).toFixed(1) : '—';
   const totalKm = fillups.length ? Math.max(...fillups.map(f => f.odometer || 0)) - Math.min(...fillups.map(f => f.odometer || 0)) : 0;
   const totalCost = fillups.reduce((s,f) => s + (f.total_cost || 0), 0);
+  const totalLitres = fillups.reduce((s,f) => s + (f.litres || 0), 0);
   const currency = bike.currency || 'kr';
+  const costPerKm = totalKm > 0 ? (totalCost / totalKm).toFixed(2) : null;
 
   const mStripe = theme.stripe ? `<div style="display:flex;height:4px;margin-bottom:1.5rem;border-radius:2px;overflow:hidden;width:120px"><div style="flex:1;background:#6CBAE7"></div><div style="flex:1;background:#1C69D4"></div><div style="flex:1;background:#E52222"></div></div>` : '';
   return `
@@ -773,8 +776,73 @@ function renderBikeHeader(bike, theme, fillups, rides) {
           <div class="stat-label">Total Spent</div>
           <div class="stat-value">${totalCost.toLocaleString()} ${currency}</div>
         </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Litres</div>
+          <div class="stat-value">${Math.round(totalLitres).toLocaleString()} L</div>
+        </div>
+        ${costPerKm !== null ? `<div class="stat-card"><div class="stat-label">Avg Cost/km</div><div class="stat-value">${costPerKm} ${currency}</div></div>` : ''}
         ${rides.length ? `<div class="stat-card"><div class="stat-label">Rides</div><div class="stat-value">${rides.length}</div></div>` : ''}
       </div>
+    </div>
+  </div>`;
+}
+
+function renderFuelSummary(fillups, theme, currency) {
+  const dated = fillups.filter(f => f.date).sort((a,b) => a.date.localeCompare(b.date));
+  if (!dated.length) return '';
+
+  const firstStr = dated[0].date.substring(0, 10);
+  const lastStr  = dated[dated.length - 1].date.substring(0, 10);
+  const [fy, fm] = firstStr.split('-').map(Number);
+  const [ly, lm] = lastStr.split('-').map(Number);
+  const totalMonths = (ly - fy) * 12 + (lm - fm);
+  const years  = Math.floor(totalMonths / 12);
+  const months = totalMonths % 12;
+  const spanStr = totalMonths <= 0 ? '< 1 month' :
+    years > 0
+      ? `${years} year${years > 1 ? 's' : ''}${months > 0 ? ` ${months} month${months > 1 ? 's' : ''}` : ''}`
+      : `${months} month${months !== 1 ? 's' : ''}`;
+
+  const fmtDate = s => {
+    const [y, mo, d] = s.split('-');
+    const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${+d} ${names[+mo - 1]} ${y}`;
+  };
+
+  const valid = fillups.filter(f => f.economy > 0 && !f.baseline);
+  let bestHtml = '', worstHtml = '';
+  if (valid.length) {
+    const best  = valid.reduce((a,b) => a.economy < b.economy ? a : b);
+    const worst = valid.reduce((a,b) => a.economy > b.economy ? a : b);
+    bestHtml  = `<div style="flex:1;min-width:150px">
+      <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:0.3rem">Best Fill-up</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.4rem;font-weight:900;color:${theme.color};line-height:1">${best.economy.toFixed(1)} <span style="font-size:0.85rem">L/100km</span></div>
+      <div style="font-size:0.75rem;color:var(--muted);margin-top:0.2rem">${best.date ? best.date.substring(0,10) : ''}</div>
+    </div>`;
+    worstHtml = `<div style="flex:1;min-width:150px">
+      <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:0.3rem">Worst Fill-up</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.4rem;font-weight:900;color:var(--muted);line-height:1">${worst.economy.toFixed(1)} <span style="font-size:0.85rem">L/100km</span></div>
+      <div style="font-size:0.75rem;color:var(--muted);margin-top:0.2rem">${worst.date ? worst.date.substring(0,10) : ''}</div>
+    </div>`;
+  }
+
+  const totalCost = fillups.reduce((s,f) => s + (f.total_cost || 0), 0);
+
+  return `
+  <div class="chart-card">
+    <h3>📊 Tracking Summary</h3>
+    <div style="display:flex;gap:2rem;flex-wrap:wrap;align-items:flex-start">
+      <div style="flex:1;min-width:150px">
+        <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:0.3rem">Period</div>
+        <div style="font-size:0.9rem;font-weight:600">${fmtDate(firstStr)} – ${fmtDate(lastStr)}</div>
+        <div style="font-size:0.75rem;color:var(--muted);margin-top:0.2rem">${spanStr}</div>
+      </div>
+      ${bestHtml}
+      ${worstHtml}
+      ${totalCost > 0 ? `<div style="flex:1;min-width:150px">
+        <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:0.3rem">Total Fuel Cost</div>
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.4rem;font-weight:900;line-height:1">${totalCost.toLocaleString()} ${currency}</div>
+      </div>` : ''}
     </div>
   </div>`;
 }
@@ -795,29 +863,63 @@ function initEconomyChart(fillups, theme) {
   if (!valid.length) return;
   const ctx = document.getElementById('economy-chart');
   if (!ctx) return;
+  const avg = valid.reduce((s,f) => s + f.economy, 0) / valid.length;
   chartInstances['economy'] = new Chart(ctx, {
     type: 'line',
     data: {
       labels: valid.map(f => f.date ? f.date.substring(0,10) : ''),
-      datasets: [{
-        label: 'L/100km',
-        data: valid.map(f => f.economy),
-        borderColor: theme.color,
-        backgroundColor: theme.color + '20',
-        tension: 0.4,
-        fill: true,
-        pointRadius: 4,
-        pointBackgroundColor: theme.color,
-      }]
+      datasets: [
+        {
+          label: 'L/100km',
+          data: valid.map(f => f.economy),
+          borderColor: theme.color,
+          backgroundColor: theme.color + '20',
+          tension: 0.4,
+          fill: true,
+          pointRadius: 4,
+          pointBackgroundColor: theme.color,
+          order: 1,
+        },
+        {
+          label: `Avg ${avg.toFixed(1)}`,
+          data: valid.map(() => avg),
+          borderColor: theme.color + '80',
+          borderWidth: 1.5,
+          borderDash: [6, 4],
+          pointRadius: 0,
+          fill: false,
+          tension: 0,
+          order: 2,
+        }
+      ]
     },
     options: {
       responsive: true, maintainAspectRatio: true,
-      plugins: { legend: { display: false } },
+      plugins: {
+        legend: {
+          display: true,
+          labels: { color: '#666', font: { size: 11 }, boxWidth: 24, usePointStyle: false }
+        }
+      },
       scales: {
         x: { ticks: { color: '#666', maxTicksLimit: 8, font: { size: 11 } }, grid: { color: '#1a1a1a' } },
         y: { ticks: { color: '#666', font: { size: 11 } }, grid: { color: '#1a1a1a' } }
       }
-    }
+    },
+    plugins: [{
+      id: 'avgLabel',
+      afterDraw(chart) {
+        const { ctx: c, chartArea, scales } = chart;
+        const yPos = scales.y.getPixelForValue(avg);
+        c.save();
+        c.font = '600 10px Barlow, sans-serif';
+        c.fillStyle = theme.color + '99';
+        c.textAlign = 'right';
+        c.textBaseline = 'bottom';
+        c.fillText('Avg', chartArea.right, yPos - 2);
+        c.restore();
+      }
+    }]
   });
 
   // Also render dist chart
@@ -878,38 +980,42 @@ function initCostChart(fillups, theme) {
 }
 
 function renderRidingStyle(fillups, theme) {
-  const totals = { road: 0, off: 0, town: 0, count: 0 };
+  const totals = { road: 0, off: 0, town: 0, track: 0, mixed: 0, count: 0 };
   fillups.forEach(f => {
-    if ((f.on_road_pct || 0) + (f.off_road_pct || 0) + (f.in_town_pct || 0) > 0) {
-      totals.road += f.on_road_pct || 0;
-      totals.off += f.off_road_pct || 0;
-      totals.town += f.in_town_pct || 0;
+    const sum = (f.on_road_pct || 0) + (f.off_road_pct || 0) + (f.in_town_pct || 0) +
+                (f.track_day_pct || 0) + (f.mixed_pct || 0);
+    if (sum > 0) {
+      totals.road  += f.on_road_pct   || 0;
+      totals.off   += f.off_road_pct  || 0;
+      totals.town  += f.in_town_pct   || 0;
+      totals.track += f.track_day_pct || 0;
+      totals.mixed += f.mixed_pct     || 0;
       totals.count++;
     }
   });
   if (!totals.count) return '';
-  const road = Math.round(totals.road / totals.count);
-  const off = Math.round(totals.off / totals.count);
-  const town = Math.round(totals.town / totals.count);
+  const road  = Math.round(totals.road  / totals.count);
+  const off   = Math.round(totals.off   / totals.count);
+  const town  = Math.round(totals.town  / totals.count);
+  const track = Math.round(totals.track / totals.count);
+  const mixed = Math.round(totals.mixed / totals.count);
+
+  const bar = (label, pct, color) => pct > 0 ? `
+    <div class="style-bar-row">
+      <span class="style-bar-label">${label}</span>
+      <div class="style-bar-track"><div class="style-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      <span class="style-bar-pct" style="color:${color}">${pct}%</span>
+    </div>` : '';
+
   return `
   <div class="chart-card">
     <h3>🛣️ Riding Style Average</h3>
     <div class="style-bars">
-      <div class="style-bar-row">
-        <span class="style-bar-label">On Road</span>
-        <div class="style-bar-track"><div class="style-bar-fill" style="width:${road}%;background:${theme.color}"></div></div>
-        <span class="style-bar-pct" style="color:${theme.color}">${road}%</span>
-      </div>
-      <div class="style-bar-row">
-        <span class="style-bar-label">Off Road</span>
-        <div class="style-bar-track"><div class="style-bar-fill" style="width:${off}%;background:#8b5cf6"></div></div>
-        <span class="style-bar-pct" style="color:#8b5cf6">${off}%</span>
-      </div>
-      <div class="style-bar-row">
-        <span class="style-bar-label">In Town</span>
-        <div class="style-bar-track"><div class="style-bar-fill" style="width:${town}%;background:#06b6d4"></div></div>
-        <span class="style-bar-pct" style="color:#06b6d4">${town}%</span>
-      </div>
+      ${bar('On Road',  road,  theme.color)}
+      ${bar('Off Road', off,   '#8b5cf6')}
+      ${bar('In Town',  town,  '#06b6d4')}
+      ${bar('Track Day',track, '#f59e0b')}
+      ${bar('Mixed',    mixed, '#6b7280')}
     </div>
   </div>`;
 }
@@ -918,17 +1024,42 @@ function renderFillupTable(fillups, theme) {
   if (!fillups.length) return '';
   const sorted = [...fillups].reverse().slice(0, 50);
   const rows = sorted.map(f => {
-    const economy = f.economy > 0 && !f.baseline
+    const isBaseline = f.baseline === 1 || f.baseline === true;
+    const isPartial  = f.partial  === 1 || f.partial  === true;
+
+    const economy = f.economy > 0 && !isBaseline
       ? `<span class="economy-cell" style="color:${theme.color}">${f.economy.toFixed(1)} L/100km</span>`
-      : f.baseline ? '<span class="no-data">Baseline</span>' : '—';
-    const style = f.on_road_pct > 0 ? `${f.on_road_pct}% rd` : '';
-    return `<tr>
+      : isBaseline ? `<span class="no-data">Baseline</span>` : '—';
+
+    const partialBadge = isPartial
+      ? ` <span style="display:inline-block;padding:0.1rem 0.35rem;border-radius:3px;font-size:0.65rem;font-weight:700;letter-spacing:0.05em;background:rgba(136,136,136,0.15);color:var(--muted);border:1px solid rgba(136,136,136,0.3);vertical-align:middle">P</span>`
+      : '';
+    const litresCell = f.litres ? `${f.litres.toFixed(2)} L${partialBadge}` : '—';
+
+    const station = f.station_name
+      ? (f.station_name.length > 20 ? f.station_name.substring(0, 20) + '…' : f.station_name)
+      : `<span style="color:var(--muted)">—</span>`;
+
+    const pctParts = [];
+    if ((f.on_road_pct   || 0) > 0) pctParts.push(`Rd ${f.on_road_pct}%`);
+    if ((f.off_road_pct  || 0) > 0) pctParts.push(`Off ${f.off_road_pct}%`);
+    if ((f.in_town_pct   || 0) > 0) pctParts.push(`Town ${f.in_town_pct}%`);
+    if ((f.track_day_pct || 0) > 0) pctParts.push(`Track ${f.track_day_pct}%`);
+    if ((f.mixed_pct     || 0) > 0) pctParts.push(`Mixed ${f.mixed_pct}%`);
+    const styleCell = pctParts.length
+      ? `<span style="color:var(--muted);font-size:0.78rem">${pctParts.join(' · ')}</span>`
+      : '';
+
+    const rowStyle = isBaseline ? ' style="background:rgba(224,92,0,0.05)"' : '';
+
+    return `<tr${rowStyle}>
       <td>${f.date ? f.date.substring(0,10) : '—'}</td>
+      <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${station}</td>
       <td>${f.odometer ? f.odometer.toLocaleString() + ' km' : '—'}</td>
-      <td>${f.litres ? f.litres.toFixed(2) + ' L' : '—'}</td>
+      <td>${litresCell}</td>
       <td>${f.total_cost ? f.total_cost.toLocaleString() : '—'}</td>
       <td>${economy}</td>
-      <td><span style="color:var(--muted);font-size:0.8rem">${style}</span></td>
+      <td>${styleCell}</td>
     </tr>`;
   }).join('');
   return `
@@ -936,7 +1067,7 @@ function renderFillupTable(fillups, theme) {
     <h3>📋 Fill-up History (last 50)</h3>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Date</th><th>Odometer</th><th>Litres</th><th>Cost</th><th>Economy</th><th>Style</th></tr></thead>
+        <thead><tr><th>Date</th><th>Station</th><th>Odometer</th><th>Litres</th><th>Cost</th><th>Economy</th><th>Style</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
