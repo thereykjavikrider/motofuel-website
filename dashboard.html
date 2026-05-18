@@ -445,6 +445,62 @@ canvas { max-height: 250px; }
   min-width: 100px;
 }
 .stat-card-sm .stat-value { font-size: 1.5rem; }
+
+/* CONSUMABLES SECTION */
+.consumables-section { display: flex; flex-direction: column; gap: 2rem; }
+.consumables-group { display: flex; flex-direction: column; gap: 1rem; }
+.consumables-group-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.1rem; font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.consumable-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.2rem;
+}
+.consumable-card-title {
+  font-weight: 700; font-size: 1rem;
+  margin-bottom: 0.75rem;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.consumable-badge {
+  font-size: 0.7rem; font-weight: 700;
+  padding: 0.15rem 0.5rem; border-radius: 3px;
+  text-transform: uppercase; letter-spacing: 0.05em;
+}
+.badge-active  { background: rgba(34,197,94,0.15);  color: #22c55e; }
+.badge-retired { background: rgba(136,136,136,0.15); color: #888; }
+.progress-track {
+  background: #2a2a2a; border-radius: 4px;
+  height: 6px; margin: 0.5rem 0;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%; border-radius: 4px;
+  transition: width 0.3s ease;
+}
+.collapsible-toggle {
+  background: none; border: none;
+  color: var(--muted); font-size: 0.8rem;
+  cursor: pointer; padding: 0.4rem 0;
+  font-family: 'Barlow', sans-serif;
+}
+.collapsible-toggle:hover { color: var(--text); }
+.collapsible-content { display: none; }
+.collapsible-content.open { display: block; }
+.history-row {
+  display: flex; gap: 1rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem; color: var(--muted);
+}
+.history-row:last-child { border-bottom: none; }
 </style>
 </head>
 <body>
@@ -583,7 +639,7 @@ window.addEventListener('load', () => {
     try {
       const saved = localStorage.getItem('mf_dashboard_data');
       if (saved) {
-        allData = JSON.parse(saved);
+        allData = normaliseData(JSON.parse(saved));
         showDashboard();
       }
     } catch(e) {}
@@ -608,18 +664,31 @@ function normaliseData(raw) {
     };
   };
 
-  // All bikes export: {bikes: [{bike:{}, fillups:[], rides:[], wheel_sets:[]}, ...]}
+  const consumables = (src) => ({
+    chains:           src.chains           || [],
+    cush_drives:      src.cush_drives      || [],
+    sprockets_front:  src.sprockets_front  || [],
+    sprockets_rear:   src.sprockets_rear   || [],
+    brake_pads_front: src.brake_pads_front || [],
+    brake_pads_rear:  src.brake_pads_rear  || [],
+  });
+
+  // All bikes export: {bikes: [{bike:{}, fillups:[], rides:[], wheel_sets:[], chains:[], ...}, ...]}
+  // Also handles already-normalised localStorage format where each element is a flat bike object.
   if (raw.bikes && Array.isArray(raw.bikes)) {
     bikes = raw.bikes.map(b => {
       if (b.bike) {
-        return { ...b.bike, fillups: b.fillups || [], rides: (b.rides || []).map(normaliseRide), wheel_sets: b.wheel_sets || [] };
+        // Raw export: consumables sit alongside bike/fillups/rides at the element level
+        return { ...b.bike, fillups: b.fillups || [], rides: (b.rides || []).map(normaliseRide), wheel_sets: b.wheel_sets || [], ...consumables(b) };
       }
-      return b;
+      // Already-normalised (from localStorage): flat bike object — preserve everything and guarantee consumable arrays
+      return { ...b, rides: (b.rides || []).map(normaliseRide), ...consumables(b) };
     });
   }
-  // Single bike export: {bike:{}, fillups:[], rides:[], wheel_sets:[]}
-  else if (raw.bike && raw.fillups) {
-    bikes = [{ ...raw.bike, fillups: raw.fillups, rides: (raw.rides || []).map(normaliseRide), wheel_sets: raw.wheel_sets || [] }];
+  // Single bike export: {bike:{}, fillups:[], rides:[], wheel_sets:[], chains:[], ...}
+  // Consumables sit at the top level of the export, NOT inside the bike object.
+  else if (raw.bike) {
+    bikes = [{ ...raw.bike, fillups: raw.fillups || [], rides: (raw.rides || []).map(normaliseRide), wheel_sets: raw.wheel_sets || [], ...consumables(raw) }];
   }
   else if (Array.isArray(raw)) { bikes = raw; }
   else if (raw.make || raw.model || raw.fillups) { bikes = [raw]; }
@@ -797,7 +866,7 @@ function renderMainPanel(bikeIdx, section) {
   } else if (section === 'consumables') {
     html = renderBikeHeader(bike, theme, fillups, rides) +
       '<div class="dashboard-content">' +
-      '<div class="empty"><div class="empty-icon">🔧</div><p>Consumables coming in next update</p></div>' +
+      renderConsumables(bike, theme) +
       '</div>';
   } else if (section === 'tires') {
     html = renderBikeHeader(bike, theme, fillups, rides) +
@@ -1348,6 +1417,255 @@ function forgetData() {
   if (confirm('This will clear all your data from this browser. Are you sure?')) {
     resetDashboard();
   }
+}
+
+function toggleCollapsible(contentId, btnId) {
+  const el  = document.getElementById(contentId);
+  const btn = document.getElementById(btnId);
+  if (!el) return;
+  const isOpen = el.classList.toggle('open');
+  if (btn) btn.textContent = btn.textContent.replace(isOpen ? '▼' : '▲', isOpen ? '▲' : '▼');
+}
+
+function renderConsumables(bike, theme) {
+  const chains     = bike.chains           || [];
+  const cushDrives = bike.cush_drives      || [];
+  const sprFront   = bike.sprockets_front  || [];
+  const sprRear    = bike.sprockets_rear   || [];
+  const padsFront  = bike.brake_pads_front || [];
+  const padsRear   = bike.brake_pads_rear  || [];
+
+  const hasAny = chains.length || cushDrives.length || sprFront.length ||
+                 sprRear.length || padsFront.length  || padsRear.length;
+  if (!hasAny) {
+    return `<div class="empty"><div class="empty-icon">🔧</div>
+      <p>No consumables data for this bike. Add consumables in the MotoFuel app to see them here.</p></div>`;
+  }
+
+  const fillups    = bike.fillups || [];
+  const currentOdo = fillups.length ? Math.max(...fillups.map(f => f.odometer || 0)) : null;
+
+  const fmtDate = s => {
+    if (!s) return '—';
+    const parts = (s + '').substring(0, 10).split('-');
+    if (parts.length < 3) return s;
+    const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${+parts[2]} ${mon[+parts[1] - 1]} ${parts[0]}`;
+  };
+
+  const bar = pct => {
+    const w   = Math.min(100, Math.max(0, pct));
+    const clr = pct >= 85 ? '#ef4444' : pct >= 65 ? '#f59e0b' : 'var(--brand)';
+    return `<div class="progress-track"><div class="progress-fill" style="width:${w}%;background:${clr}"></div></div>
+      <div style="font-size:0.75rem;color:${clr};font-weight:700;margin-bottom:0.5rem">${pct}% used</div>`;
+  };
+
+  const kmBlock = (kmAtInstall, kmLimit, kmRidden) => {
+    const cells = [];
+    if (kmAtInstall != null) cells.push(`<div><div class="stat-label">Installed at</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:700">${kmAtInstall.toLocaleString()} km</div></div>`);
+    if (kmRidden != null) cells.push(`<div><div class="stat-label">Km ridden</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:700;color:var(--brand)">${kmRidden.toLocaleString()} km</div></div>`);
+    if (kmLimit)  cells.push(`<div><div class="stat-label">Km limit</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:700">${kmLimit.toLocaleString()} km</div></div>`);
+    let html = `<div style="display:flex;gap:2rem;flex-wrap:wrap;margin-bottom:0.75rem">${cells.join('')}</div>`;
+    if (kmRidden != null && kmLimit) html += bar(Math.round((kmRidden / kmLimit) * 100));
+    return html;
+  };
+
+  const isActive = c => c.retired !== 1 && c.retired !== true;
+
+  const historyRows = (items, labelFn) => items.map((c, i) => {
+    const nextKm = items[i + 1]?.km_at_install ?? null;
+    const ridden = c.km_at_install != null && nextKm != null
+      ? Math.max(0, nextKm - c.km_at_install) : null;
+    return `<div class="history-row">
+      ${labelFn(c)}
+      <span>from ${fmtDate(c.installed_at)}</span>
+      ${ridden !== null ? `<span>${ridden.toLocaleString()} km</span>` : ''}
+      ${c.km_limit ? `<span style="color:var(--muted)">/ ${c.km_limit.toLocaleString()} km limit</span>` : ''}
+    </div>`;
+  }).join('');
+
+  function renderChainCard() {
+    if (!chains.length) return '';
+    const active  = chains.find(isActive);
+    const retired = chains.filter(c => !isActive(c)).sort((a, b) => (a.km_at_install || 0) - (b.km_at_install || 0));
+    let html = '';
+
+    if (active) {
+      const kmRidden = currentOdo != null && active.km_at_install != null
+        ? Math.max(0, currentOdo - active.km_at_install) : null;
+      html += `<div class="consumable-card">
+        <div class="consumable-card-title">⛓️ ${active.brand || 'Drive Chain'}
+          <span class="consumable-badge badge-active">Active</span>
+        </div>
+        <div style="font-size:0.8rem;color:var(--muted);margin-bottom:0.75rem">Installed ${fmtDate(active.installed_at)}</div>
+        ${kmBlock(active.km_at_install, active.km_limit, kmRidden)}
+        ${active.notes ? `<div style="font-size:0.8rem;color:var(--muted);font-style:italic;margin-top:0.25rem">${active.notes}</div>` : ''}
+      </div>`;
+
+      const allLube = chains.flatMap(c => c.lube_events || [])
+        .filter(e => e.odometer_km != null)
+        .sort((a, b) => b.odometer_km - a.odometer_km);
+      if (allLube.length) {
+        const last    = allLube[0];
+        const kmSince = currentOdo != null ? Math.max(0, currentOdo - last.odometer_km) : null;
+        html += `<div class="consumable-card">
+          <div class="consumable-card-title">🛢️ Chain Lube
+            <span class="consumable-badge" style="background:rgba(136,136,136,0.15);color:#888">${allLube.length} events</span>
+          </div>
+          <div style="display:flex;gap:2rem;flex-wrap:wrap;margin-bottom:0.75rem">
+            <div>
+              <div class="stat-label">Last lubed</div>
+              <div style="font-size:0.9rem;font-weight:600">${fmtDate(last.date)}</div>
+              <div style="font-size:0.75rem;color:var(--muted)">${last.odometer_km.toLocaleString()} km</div>
+            </div>
+            ${kmSince !== null ? `<div>
+              <div class="stat-label">Since last lube</div>
+              <div style="font-family:'Barlow Condensed',sans-serif;font-size:1.4rem;font-weight:900;color:var(--brand)">${kmSince.toLocaleString()} km</div>
+            </div>` : ''}
+          </div>
+          <button class="collapsible-toggle" id="lube-hist-btn"
+            onclick="toggleCollapsible('lube-hist','lube-hist-btn')">▼ Show lube history</button>
+          <div class="collapsible-content" id="lube-hist" style="margin-top:0.5rem">
+            ${allLube.slice(0, 10).map(e => `<div class="history-row">
+              <span style="min-width:90px">${fmtDate(e.date)}</span>
+              <span>${e.odometer_km.toLocaleString()} km</span>
+              ${e.product ? `<span style="margin-left:auto;color:var(--text)">${e.product}</span>` : ''}
+            </div>`).join('')}
+          </div>
+        </div>`;
+      }
+    }
+
+    if (retired.length) {
+      const withActive = [...retired, ...(active ? [active] : [])];
+      html += `<div class="consumable-card">
+        <button class="collapsible-toggle" id="chain-hist-btn"
+          onclick="toggleCollapsible('chain-hist','chain-hist-btn')">▼ Chain History (${retired.length} retired)</button>
+        <div class="collapsible-content" id="chain-hist" style="margin-top:0.5rem">
+          ${historyRows(retired, c => `<span style="font-weight:600;color:var(--text)">${c.brand || '—'}</span>`)}
+        </div>
+      </div>`;
+    }
+    return html;
+  }
+
+  function renderSprocketCard(sprockets, position) {
+    if (!sprockets.length) return '';
+    const active  = sprockets.find(isActive);
+    const retired = sprockets.filter(s => !isActive(s)).sort((a, b) => (a.km_at_install || 0) - (b.km_at_install || 0));
+    const label   = position === 'front' ? '⚙️ Front Sprocket' : '⚙️ Rear Sprocket';
+    const idPfx   = 'spr-' + position;
+    let html = '<div class="consumable-card">';
+
+    if (active) {
+      const kmRidden = currentOdo != null && active.km_at_install != null
+        ? Math.max(0, currentOdo - active.km_at_install) : null;
+      html += `<div class="consumable-card-title">${label}${active.teeth ? ' — ' + active.teeth + 'T' : ''}
+        <span class="consumable-badge badge-active">Active</span>
+      </div>
+      <div style="font-size:0.85rem;color:var(--muted);margin-bottom:0.75rem">${active.brand ? active.brand + ' · ' : ''}Installed ${fmtDate(active.installed_at)}</div>
+      ${kmBlock(active.km_at_install, active.km_limit, kmRidden)}`;
+    } else {
+      html += `<div class="consumable-card-title">${label}</div>`;
+    }
+
+    if (retired.length) {
+      html += `<button class="collapsible-toggle" id="${idPfx}-hist-btn"
+        onclick="toggleCollapsible('${idPfx}-hist','${idPfx}-hist-btn')">▼ ${retired.length} retired</button>
+      <div class="collapsible-content" id="${idPfx}-hist" style="margin-top:0.5rem">
+        ${historyRows(retired, s => `<span style="font-weight:600;color:var(--text)">${s.brand || '—'}${s.teeth ? ' ' + s.teeth + 'T' : ''}</span>`)}
+      </div>`;
+    }
+    return html + '</div>';
+  }
+
+  function renderCushDriveCard() {
+    if (!cushDrives.length) return '';
+    const active  = cushDrives.find(isActive);
+    const retired = cushDrives.filter(c => !isActive(c)).sort((a, b) => (a.km_at_install || 0) - (b.km_at_install || 0));
+    let html = '<div class="consumable-card">';
+
+    if (active) {
+      const kmRidden = currentOdo != null && active.km_at_install != null
+        ? Math.max(0, currentOdo - active.km_at_install) : null;
+      html += `<div class="consumable-card-title">🔩 Cush Drive
+        <span class="consumable-badge badge-active">Active</span>
+      </div>
+      <div style="font-size:0.85rem;color:var(--muted);margin-bottom:0.75rem">Installed ${fmtDate(active.installed_at)}</div>
+      ${kmBlock(active.km_at_install, active.km_limit, kmRidden)}
+      ${active.notes ? `<div style="font-size:0.8rem;color:var(--muted);font-style:italic;margin-top:0.25rem">${active.notes}</div>` : ''}`;
+    } else {
+      html += `<div class="consumable-card-title">🔩 Cush Drive</div>`;
+    }
+
+    if (retired.length) {
+      html += `<button class="collapsible-toggle" id="cush-hist-btn"
+        onclick="toggleCollapsible('cush-hist','cush-hist-btn')">▼ ${retired.length} retired</button>
+      <div class="collapsible-content" id="cush-hist" style="margin-top:0.5rem">
+        ${historyRows(retired, () => '')}
+      </div>`;
+    }
+    return html + '</div>';
+  }
+
+  function renderBrakePadCard(pads, position) {
+    if (!pads.length) return '';
+    const active  = pads.find(isActive);
+    const retired = pads.filter(p => !isActive(p)).sort((a, b) => (a.km_at_install || 0) - (b.km_at_install || 0));
+    const label   = position === 'front' ? '🛑 Front Brake Pads' : '🛑 Rear Brake Pads';
+    const idPfx   = 'pad-' + position;
+    let html = '<div class="consumable-card">';
+
+    if (active) {
+      const kmRidden = currentOdo != null && active.km_at_install != null
+        ? Math.max(0, currentOdo - active.km_at_install) : null;
+      html += `<div class="consumable-card-title">${label}
+        <span class="consumable-badge badge-active">Active</span>
+      </div>
+      <div style="font-size:0.85rem;color:var(--muted);margin-bottom:0.75rem">${active.brand ? active.brand + ' · ' : ''}Installed ${fmtDate(active.installed_at)}</div>
+      ${kmBlock(active.km_at_install, active.km_limit, kmRidden)}
+      ${active.notes ? `<div style="font-size:0.8rem;color:var(--muted);font-style:italic;margin-top:0.25rem">${active.notes}</div>` : ''}`;
+    } else {
+      html += `<div class="consumable-card-title">${label}</div>`;
+    }
+
+    if (retired.length) {
+      html += `<button class="collapsible-toggle" id="${idPfx}-hist-btn"
+        onclick="toggleCollapsible('${idPfx}-hist','${idPfx}-hist-btn')">▼ ${retired.length} retired</button>
+      <div class="collapsible-content" id="${idPfx}-hist" style="margin-top:0.5rem">
+        ${historyRows(retired, p => `<span style="font-weight:600;color:var(--text)">${p.brand || '—'}</span>`)}
+      </div>`;
+    }
+    return html + '</div>';
+  }
+
+  const hasDrivetrain = chains.length || cushDrives.length || sprFront.length || sprRear.length;
+  const hasBrakes     = padsFront.length || padsRear.length;
+
+  let out = '<div class="consumables-section">';
+
+  if (hasDrivetrain) {
+    out += `<div class="consumables-group">
+      <div class="consumables-group-title">Drive Train</div>
+      ${renderChainCard()}
+      ${renderSprocketCard(sprFront, 'front')}
+      ${renderSprocketCard(sprRear,  'rear')}
+      ${renderCushDriveCard()}
+    </div>`;
+  }
+
+  if (hasBrakes) {
+    out += `<div class="consumables-group">
+      <div class="consumables-group-title">Brakes</div>
+      ${renderBrakePadCard(padsFront, 'front')}
+      ${renderBrakePadCard(padsRear,  'rear')}
+    </div>`;
+  }
+
+  return out + '</div>';
 }
 </script>
 </body>
