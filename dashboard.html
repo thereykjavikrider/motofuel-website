@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&family=Oswald:wght@400;600;700&family=Bebas+Neue&family=Rajdhani:wght@600;700&family=Titillium+Web:wght@400;600;700&family=Playfair+Display:wght@700;900&family=Racing+Sans+One&family=Rye&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root {
   --brand: #e05c00;
@@ -390,6 +392,59 @@ canvas { max-height: 250px; }
   .sidebar-sections { flex-direction: row; overflow-x: auto; padding: 0.5rem 1rem; }
   .sidebar-section-btn { padding: 0.4rem 1rem; white-space: nowrap; }
 }
+
+/* RIDES SECTION */
+.rides-list { display: flex; flex-direction: column; gap: 1rem; }
+
+.ride-card-v2 {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.ride-card-header {
+  padding: 1rem 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ride-card-stats {
+  padding: 0 1.2rem 1rem;
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.ride-map-container {
+  height: 300px;
+  display: none;
+}
+.ride-map-container.open { display: block; }
+
+.show-route-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 0.3rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-family: 'Barlow', sans-serif;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.show-route-btn:hover { border-color: var(--brand); color: var(--brand); }
+
+.stat-card-sm {
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  min-width: 100px;
+}
+.stat-card-sm .stat-value { font-size: 1.5rem; }
 </style>
 </head>
 <body>
@@ -473,6 +528,8 @@ let allData = null;
 let currentBikeIdx = 0;
 let currentSection = 'fuel';
 let chartInstances = {};
+let leafletMaps = {};
+let rideLocationsCache = {};
 
 // ── FILE IMPORT ───────────────────────────────────────────────────
 const dropZone = document.getElementById('drop-zone');
@@ -536,18 +593,33 @@ window.addEventListener('load', () => {
 function normaliseData(raw) {
   let bikes = [];
 
+  const normaliseRide = r => {
+    let duration_minutes = r.duration_minutes;
+    if (!duration_minutes && r.start_time && r.end_time) {
+      duration_minutes = Math.round((new Date(r.end_time) - new Date(r.start_time)) / 60000);
+    }
+    return {
+      ...r,
+      duration_minutes,
+      ride_locations:  r.ride_locations || r.locations || [],
+      avg_speed_kmh:   r.avg_speed_kmh  ?? null,
+      start_odometer:  r.start_odometer ?? null,
+      end_odometer:    r.end_odometer   ?? null,
+    };
+  };
+
   // All bikes export: {bikes: [{bike:{}, fillups:[], rides:[], wheel_sets:[]}, ...]}
   if (raw.bikes && Array.isArray(raw.bikes)) {
     bikes = raw.bikes.map(b => {
       if (b.bike) {
-        return { ...b.bike, fillups: b.fillups || [], rides: b.rides || [], wheel_sets: b.wheel_sets || [] };
+        return { ...b.bike, fillups: b.fillups || [], rides: (b.rides || []).map(normaliseRide), wheel_sets: b.wheel_sets || [] };
       }
       return b;
     });
   }
   // Single bike export: {bike:{}, fillups:[], rides:[], wheel_sets:[]}
   else if (raw.bike && raw.fillups) {
-    bikes = [{ ...raw.bike, fillups: raw.fillups, rides: raw.rides || [], wheel_sets: raw.wheel_sets || [] }];
+    bikes = [{ ...raw.bike, fillups: raw.fillups, rides: (raw.rides || []).map(normaliseRide), wheel_sets: raw.wheel_sets || [] }];
   }
   else if (Array.isArray(raw)) { bikes = raw; }
   else if (raw.make || raw.model || raw.fillups) { bikes = [raw]; }
@@ -582,6 +654,9 @@ function resetDashboard() {
   fileInput.value = '';
   Object.values(chartInstances).forEach(c => c.destroy());
   chartInstances = {};
+  Object.values(leafletMaps).forEach(m => { try { m.remove(); } catch(e) {} });
+  leafletMaps = {};
+  rideLocationsCache = {};
 }
 
 // ── SHOW DASHBOARD ────────────────────────────────────────────────
@@ -697,6 +772,9 @@ function renderMainPanel(bikeIdx, section) {
 
   Object.values(chartInstances).forEach(c => c.destroy());
   chartInstances = {};
+  Object.values(leafletMaps).forEach(m => { try { m.remove(); } catch(e) {} });
+  leafletMaps = {};
+  rideLocationsCache = {};
 
   const panel = document.getElementById('main-panel');
   panel.className = 'main-panel ' + theme.class;
@@ -1075,23 +1153,133 @@ function renderFillupTable(fillups, theme) {
 }
 
 function renderRides(rides, theme) {
-  if (!rides.length) return '';
-  const sorted = [...rides].reverse().slice(0, 12);
-  const cards = sorted.map(r => {
-    const duration = r.duration_minutes ? formatDuration(r.duration_minutes) : '—';
-    const dist = r.distance_km ? r.distance_km.toFixed(0) + ' km' : '—';
-    const ironButt = r.is_iron_butt ? '<span class="badge badge-ironbutt">🏁 Iron Butt</span>' : '';
-    return `<div class="ride-card">
-      <div class="ride-date">${r.start_time ? new Date(r.start_time).toLocaleDateString() : '—'} ${ironButt}</div>
-      <div class="ride-stats">
-        <div class="ride-stat"><div class="ride-stat-val" style="color:${theme.color}">${dist}</div><div class="ride-stat-lbl">Distance</div></div>
-        <div class="ride-stat"><div class="ride-stat-val">${duration}</div><div class="ride-stat-lbl">Duration</div></div>
-        ${r.max_speed_kmh ? `<div class="ride-stat"><div class="ride-stat-val">${r.max_speed_kmh.toFixed(0)} km/h</div><div class="ride-stat-lbl">Max Speed</div></div>` : ''}
-        ${r.fillup_count ? `<div class="ride-stat"><div class="ride-stat-val">${r.fillup_count}</div><div class="ride-stat-lbl">Fill-ups</div></div>` : ''}
+  rideLocationsCache = {};
+  if (!rides.length) {
+    return '<div class="empty"><div class="empty-icon">🏍️</div><p>No rides recorded yet</p></div>';
+  }
+
+  const fmtDate = dt => {
+    if (!dt) return '—';
+    return new Date(dt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  const totalDist = rides.reduce((s,r) => s + (r.distance_km || 0), 0);
+  const totalMins = rides.reduce((s,r) => s + (r.duration_minutes || 0), 0);
+  const longest   = rides.reduce((a,b) => (a.distance_km||0) >= (b.distance_km||0) ? a : b);
+  const withSpeed = rides.filter(r => r.max_speed_kmh);
+  const topSpeed  = withSpeed.length ? Math.max(...withSpeed.map(r => r.max_speed_kmh)) : null;
+
+  const statsHtml = `<div class="chart-card" style="margin-bottom:1.5rem">
+    <div class="stats-row">
+      <div class="stat-card stat-card-sm">
+        <div class="stat-label">Total Rides</div>
+        <div class="stat-value">${rides.length}</div>
       </div>
+      <div class="stat-card stat-card-sm">
+        <div class="stat-label">Total Distance</div>
+        <div class="stat-value">${Math.round(totalDist).toLocaleString()} km</div>
+      </div>
+      <div class="stat-card stat-card-sm">
+        <div class="stat-label">Total Time</div>
+        <div class="stat-value">${formatDuration(totalMins)}</div>
+      </div>
+      <div class="stat-card stat-card-sm">
+        <div class="stat-label">Longest Ride</div>
+        <div class="stat-value" style="color:${theme.color}">${Math.round(longest.distance_km||0).toLocaleString()} km</div>
+        <div style="font-size:0.7rem;color:var(--muted);margin-top:0.15rem">${fmtDate(longest.start_time)}</div>
+      </div>
+      ${topSpeed ? `<div class="stat-card stat-card-sm"><div class="stat-label">Top Speed</div><div class="stat-value">${Math.round(topSpeed)} km/h</div></div>` : ''}
+    </div>
+  </div>`;
+
+  const sorted = [...rides].reverse();
+  const cards = sorted.map((r, i) => {
+    rideLocationsCache[i] = r.ride_locations || [];
+    const date     = fmtDate(r.start_time);
+    const ironButt = r.is_iron_butt ? '<span class="badge badge-ironbutt" style="margin-left:0.5rem">🏁 Iron Butt</span>' : '';
+    const dur      = r.duration_minutes ? formatDuration(r.duration_minutes) : null;
+    const dist     = r.distance_km ? Math.round(r.distance_km).toLocaleString() + ' km' : null;
+    const avgSpd   = r.avg_speed_kmh ? Math.round(r.avg_speed_kmh) + ' km/h' : null;
+    const maxSpd   = r.max_speed_kmh ? Math.round(r.max_speed_kmh) + ' km/h' : null;
+
+    const stat = (val, lbl, hi) => val ? `
+      <div class="ride-stat">
+        <div class="ride-stat-val"${hi ? ` style="color:${theme.color}"` : ''}>${val}</div>
+        <div class="ride-stat-lbl">${lbl}</div>
+      </div>` : '';
+
+    const odoLine = (r.start_odometer || r.end_odometer)
+      ? `<div style="padding:0 1.2rem 0.75rem;font-size:0.75rem;color:var(--muted)">
+           ${r.start_odometer ? r.start_odometer.toLocaleString() + ' km' : '?'} → ${r.end_odometer ? r.end_odometer.toLocaleString() + ' km' : '?'}
+         </div>`
+      : '';
+
+    return `<div class="ride-card-v2">
+      <div class="ride-card-header">
+        <div><span style="font-weight:600;font-size:0.95rem">${date}</span>${ironButt}</div>
+        <button class="show-route-btn" id="ride-btn-${i}" onclick="toggleRideMap(${i},'${theme.color}')">Show Route</button>
+      </div>
+      <div class="ride-card-stats">
+        ${stat(dist,   'Distance', true)}
+        ${stat(dur,    'Duration', false)}
+        ${stat(avgSpd, 'Avg Speed', false)}
+        ${stat(maxSpd, 'Max Speed', false)}
+        ${stat(r.fillup_count ? String(r.fillup_count) : null, 'Fill-ups', false)}
+      </div>
+      ${odoLine}
+      <div class="ride-map-container" id="ride-map-${i}"></div>
     </div>`;
   }).join('');
-  return `<div style="margin-bottom:1.5rem"><div class="section-title" style="color:${theme.color}">🏍️ Ride History</div><div class="ride-grid">${cards}</div></div>`;
+
+  return `<div class="rides-list">${statsHtml}${cards}</div>`;
+}
+
+function toggleRideMap(rideId, themeColor) {
+  const container = document.getElementById('ride-map-' + rideId);
+  const btn       = document.getElementById('ride-btn-' + rideId);
+  if (!container) return;
+
+  if (container.classList.contains('open')) {
+    container.classList.remove('open');
+    if (btn) btn.textContent = 'Show Route';
+    if (leafletMaps[rideId]) {
+      leafletMaps[rideId].remove();
+      delete leafletMaps[rideId];
+    }
+    return;
+  }
+
+  container.classList.add('open');
+  const locations = rideLocationsCache[rideId] || [];
+
+  if (!locations.length) {
+    container.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:0.9rem">No GPS data for this ride</div>';
+    if (btn) btn.textContent = 'Hide';
+    return;
+  }
+
+  if (btn) btn.textContent = 'Hide Route';
+
+  const map = L.map(container, { zoomControl: true });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 20
+  }).addTo(map);
+
+  const latlngs = locations.map(loc => [loc.lat, loc.lon]);
+  const line = L.polyline(latlngs, { color: themeColor, weight: 3, opacity: 0.9 }).addTo(map);
+
+  L.circleMarker(latlngs[0], {
+    radius: 7, fillColor: '#22c55e', color: '#ffffff', weight: 2, fillOpacity: 1
+  }).addTo(map);
+
+  L.circleMarker(latlngs[latlngs.length - 1], {
+    radius: 7, fillColor: themeColor, color: '#ffffff', weight: 2, fillOpacity: 1
+  }).addTo(map);
+
+  map.fitBounds(line.getBounds(), { padding: [20, 20] });
+  leafletMaps[rideId] = map;
 }
 
 function renderTires(wheelSets, theme) {
