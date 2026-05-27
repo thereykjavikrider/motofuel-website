@@ -698,8 +698,12 @@ function checkUrlHash() {
   }
 }
 
-// Check on load — URL hash takes priority, then localStorage
+// Check on load — URL ?demo=1 first, then URL hash, then localStorage
 window.addEventListener('load', () => {
+  if (new URLSearchParams(window.location.search).get('demo') === '1') {
+    loadDemo();
+    return;
+  }
   if (!checkUrlHash()) {
     try {
       const saved = localStorage.getItem('mf_dashboard_data');
@@ -797,7 +801,9 @@ function resetDashboard() {
 
 // ── SHOW DASHBOARD ────────────────────────────────────────────────
 function showDashboard() {
-  try { localStorage.setItem('mf_dashboard_data', JSON.stringify(allData)); } catch(e) {}
+  if (!isDemo) {
+    try { localStorage.setItem('mf_dashboard_data', JSON.stringify(allData)); } catch(e) {}
+  }
   document.getElementById('import-screen').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
   document.querySelector('nav').style.display = 'none';
