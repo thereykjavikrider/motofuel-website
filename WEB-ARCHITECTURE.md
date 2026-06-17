@@ -1,11 +1,12 @@
 # motofuel.app — Web Architecture
 
 ## Hosting
-- **Platform:** Netlify
+- **Platform:** Cloudflare Pages (migrated from Netlify, May 2026)
 - **Repo:** github.com/thereykjavikrider/motofuel-website
 - **Deploy:** Auto-deploys on every `git push` to main
 - **Domain:** motofuel.app (primary) + www.motofuel.app (redirects)
-- **SSL:** Let's Encrypt via Netlify, auto-renews
+- **DNS:** Namecheap → Cloudflare nameservers
+- **SSL:** Cloudflare-managed, auto-renews
 
 ## File Structure
 motofuel-website/
@@ -64,7 +65,7 @@ Three methods: One tap from app, File import, Export all bikes.
 - HTML5, CSS3, Vanilla JS — no frameworks
 - Chart.js 4.4.1 — charts
 - Google Fonts — Barlow + brand fonts
-- Netlify — hosting + auto-deploy
+- Cloudflare Pages — hosting + auto-deploy
 
 ## Roadmap
 - Browser Save button
