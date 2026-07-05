@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MotoFuel — Built by a rider, for riders</title>
-<meta name="description" content="The smart motorcycle fuel tracker with voice logging, GPS ride tracking and live fuel prices. Built in Iceland.">
+<meta name="description" content="The smart motorcycle fuel tracker with GPS ride tracking, live fuel prices and tire wear tracking. Built in Iceland.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -471,7 +471,6 @@ footer {
   <a href="#" class="nav-logo">MotoFuel</a>
   <ul class="nav-links">
     <li><a href="#features">Features</a></li>
-    <li><a href="#voice">Voice</a></li>
     <li><a href="#rides">Rides</a></li>
     <li><a href="#fuel">Fuel Prices</a></li>
     <li><a href="#ironbutt">Iron Butt</a></li>
@@ -484,7 +483,7 @@ footer {
 <section class="hero">
   <div class="hero-badge">🇮🇸 Made in Iceland · Built by a rider, for riders</div>
   <h1>MOTO<span>FUEL</span></h1>
-  <p class="hero-sub">Fuel tracking, GPS ride logging, live fuel prices and Iron Butt mode — all hands-free.</p>
+  <p class="hero-sub">Fuel tracking, GPS ride logging, live fuel prices and Iron Butt mode — all in one app.</p>
   <p class="hero-quote">"Bikers are no buggers — keep it simple"</p>
   <div class="hero-buttons">
     <a href="https://testflight.apple.com/join/14WTnnSh" class="btn-primary">🍎 Join TestFlight</a>
@@ -551,7 +550,7 @@ footer {
       <div class="feature-card">
         <div class="feature-icon">📱</div>
         <h3>Lock Screen Live Activity <span class="feature-new">New</span></h3>
-        <p>Ride in progress shown on your lock screen with live timer. One tap logs a fill-up without unlocking your phone.</p>
+        <p>Ride in progress shown on your lock screen with a live timer and distance, updating as you ride.</p>
       </div>
       <div class="feature-card">
         <div class="feature-icon">🏆</div>
@@ -562,7 +561,10 @@ footer {
   </div>
 </section>
 
-<!-- VOICE -->
+<!-- VOICE SECTION - HIDDEN FOR v1.0.
+     Voice / hands-free logging is gated behind VOICE_ENABLED in the app (currently off).
+     Siri shortcuts open the app but do not trigger logging or rides in v1.0.
+     Restore this whole block for v1.1 when voice ships.
 <section id="voice" class="voice-section">
   <div class="container">
     <div class="voice-layout">
@@ -639,7 +641,6 @@ footer {
       </div>
     </div>
 
-    <!-- SIRI SHORTCUTS -->
     <div style="margin-top: 4rem;">
       <div class="section-label">Siri Shortcuts</div>
       <h3 style="font-family:'Barlow Condensed',sans-serif; font-size:1.8rem; font-weight:900; margin-bottom:0.5rem;">Just say the word</h3>
@@ -660,6 +661,7 @@ footer {
     </div>
   </div>
 </section>
+-->
 
 <!-- RIDES -->
 <section id="rides">
@@ -687,7 +689,7 @@ footer {
         <div class="ride-feature-icon">📱</div>
         <div>
           <h4>Lock Screen Live Activity</h4>
-          <p>Ride duration and fill-up count live on your lock screen. Tap Log to voice-log a fill-up without unlocking.</p>
+          <p>Ride duration and distance live on your lock screen, updating in the background as you ride.</p>
         </div>
       </div>
       <div class="ride-feature">
