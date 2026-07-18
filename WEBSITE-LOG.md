@@ -9,6 +9,14 @@ Newest first.
 > doesn't have. When the site leads the app, the claim is pulled back or hidden
 > until the app catches up — and logged here so it's restored, not forgotten.
 
+## 2026-07 — Maintenance/informational disclaimer added to site footer
+Added a short disclaimer line to the site-wide footer (index, support, privacy):
+"MotoFuel is an informational record-keeping tool and is not a substitute for your
+manufacturer's maintenance schedule or professional inspection." Brings the website
+in line with the in-app Service Intervals disclaimer, ahead of App Store launch. No
+dedicated Terms page yet, so the footer line stands alone (fuller version can move
+there later).
+
 ## 2026-07 — Iron Butt copy corrected to match v1.0 app
 Site marketed a dedicated "Iron Butt Mode" with a guided ride-start, automatic
 geotagged receipts at every fuel stop, and a "certified" IBA artifact — none of
