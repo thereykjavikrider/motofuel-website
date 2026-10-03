@@ -9,6 +9,25 @@ Newest first.
 > doesn't have. When the site leads the app, the claim is pulled back or hidden
 > until the app catches up — and logged here so it's restored, not forgotten.
 
+## 2026-10 — UK fuel prices & TestFlight CTAs removed for build 37 (App Store resubmit)
+MotoFuel 1.2.0 (build 37) is an App Store submission, and App Review reaches
+motofuel.app from the app's About screen — so two landing-page claims were pulled
+back to match the shipping binary.
+- UK live fuel prices: the app's UK source went dead, so build 37 ships Iceland-only
+  live prices. Removed the "🇬🇧 United Kingdom" coverage card, the "7,800+ UK stations
+  live" hero stat, and the "UK Gov Fuel Finder" footer data credit; "Iceland and UK
+  covered" → "Live prices in Iceland". Support FAQ ("which countries") and privacy
+  (fuel-price data source) copy fixed to match. No "UK coming soon" teaser, per the
+  keep-it-to-what-ships rule.
+  RESTORE: when the official UK government fuel integration ships in a later update.
+- TestFlight: an App Store app must not funnel reviewers/users to a beta. All five
+  "Join TestFlight" buttons/links (nav + hero + CTA on index, plus the nav CTA on
+  support and privacy) are now a non-link "Coming soon to the App Store" label;
+  "Free during beta. Available on iOS." → "Free. Coming soon to the App Store for
+  iPhone."
+  RESTORE: after approval/release, swap the labels for the official "Download on the
+  App Store" badge linking to the real listing — nothing points to a not-yet-live URL.
+
 ## 2026-07 — Maintenance/informational disclaimer added to site footer
 Added a short disclaimer line to the site-wide footer (index, support, privacy):
 "MotoFuel is an informational record-keeping tool and is not a substitute for your
