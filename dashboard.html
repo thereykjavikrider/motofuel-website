@@ -545,7 +545,8 @@ canvas { max-height: 250px; }
 }
 
 .leaflet-tile-pane { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }
-.ride-map-container.map-expanded { position: fixed; inset: 0; z-index: 10000; width: 100vw; height: 100vh; border-radius: 0; }
+.ride-map-container:fullscreen { width: 100%; height: 100%; border-radius: 0; }
+.ride-map-container:-webkit-full-screen { width: 100%; height: 100%; border-radius: 0; }
 </style>
 </head>
 <body>
@@ -1393,6 +1394,7 @@ function toggleRideMap(rideId, themeColor) {
     container.classList.remove('open');
     if (btn) btn.textContent = 'Show Route';
     if (leafletMaps[rideId]) {
+      if (leafletMaps[rideId]._fsCleanup) leafletMaps[rideId]._fsCleanup();
       leafletMaps[rideId].remove();
       delete leafletMaps[rideId];
     }
@@ -1429,30 +1431,84 @@ function toggleRideMap(rideId, themeColor) {
 
   map.fitBounds(line.getBounds(), { padding: [20, 20] });
 
-  // Full screen toggle (CSS-based, not the Fullscreen API — that fails for maps on iPhone Safari)
-  let fsExpanded = false;
+  // Full screen toggle: real Fullscreen API where supported (Mac/PC/iPad),
+  // CSS fallback that reparents the map to <body> where it isn't (iPhone Safari).
+  const fsSupported = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
   let fsBtn;
-  const fsEscHandler = (e) => { if (e.key === 'Escape' && fsExpanded) toggleFullScreen(); };
-  function toggleFullScreen() {
-    fsExpanded = !fsExpanded;
-    if (fsExpanded) {
-      container.classList.add('map-expanded');
-      document.body.style.overflow = 'hidden';
-      fsBtn.innerHTML = '✕';
-      fsBtn.title = 'Exit full screen';
-      fsBtn.setAttribute('aria-label', 'Exit full screen');
-      document.addEventListener('keydown', fsEscHandler);
-    } else {
-      container.classList.remove('map-expanded');
-      document.body.style.overflow = '';
-      fsBtn.innerHTML = '⛶';
-      fsBtn.title = 'Full screen';
-      fsBtn.setAttribute('aria-label', 'Full screen');
-      document.removeEventListener('keydown', fsEscHandler);
-    }
+  let fbParent = null, fbNext = null;   // saved original DOM slot while in fallback mode
+
+  const refit = () => {
     map.invalidateSize();
-    map.fitBounds(line.getBounds(), { padding: fsExpanded ? [40, 40] : [20, 20] });
+    map.fitBounds(line.getBounds(), { padding: [40, 40] });
+  };
+  const setFsBtn = (expanded) => {
+    fsBtn.innerHTML = expanded ? '✕' : '⛶';
+    fsBtn.title = expanded ? 'Exit full screen' : 'Full screen';
+    fsBtn.setAttribute('aria-label', expanded ? 'Exit full screen' : 'Full screen');
+  };
+
+  // Mode A — native fullscreen. Button state and refit are driven by the change event,
+  // so Esc / browser-chrome exits are handled too.
+  const onFsChange = () => {
+    const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+    setFsBtn(fsEl === container);
+    refit();
+  };
+  document.addEventListener('fullscreenchange', onFsChange);
+  document.addEventListener('webkitfullscreenchange', onFsChange);
+
+  // Mode B — CSS fallback (reparent to body, inline fixed styles, lock body scroll).
+  const fbEscHandler = (e) => { if (e.key === 'Escape') exitFallback(); };
+  function enterFallback() {
+    fbParent = container.parentNode;
+    fbNext = container.nextSibling;
+    document.body.appendChild(container);
+    container.style.position = 'fixed';
+    container.style.top = '0';
+    container.style.left = '0';
+    container.style.right = '0';
+    container.style.bottom = '0';
+    container.style.width = '100%';
+    container.style.height = '100dvh';
+    container.style.zIndex = '10000';
+    container.style.borderRadius = '0';
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', fbEscHandler);
+    setFsBtn(true);
+    refit();
   }
+  function exitFallback() {
+    ['position','top','left','right','bottom','width','height','zIndex','borderRadius']
+      .forEach(p => { container.style[p] = ''; });
+    document.body.style.overflow = '';
+    if (fbParent) { fbParent.insertBefore(container, fbNext); fbParent = null; fbNext = null; }
+    document.removeEventListener('keydown', fbEscHandler);
+    setFsBtn(false);
+    refit();
+  }
+
+  function toggleFullScreen() {
+    if (fsSupported) {
+      const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+      if (fsEl === container) {
+        (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      } else if (container.requestFullscreen) {
+        container.requestFullscreen();
+      } else if (container.webkitRequestFullscreen) {
+        container.webkitRequestFullscreen();
+      }
+    } else {
+      if (fbParent) exitFallback(); else enterFallback();
+    }
+  }
+
+  // Removes document-level listeners (and restores scroll) when this map is torn down.
+  map._fsCleanup = () => {
+    document.removeEventListener('fullscreenchange', onFsChange);
+    document.removeEventListener('webkitfullscreenchange', onFsChange);
+    document.removeEventListener('keydown', fbEscHandler);
+    document.body.style.overflow = '';
+  };
 
   const FullScreenControl = L.Control.extend({
     options: { position: 'topright' },
