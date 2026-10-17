@@ -437,6 +437,22 @@ canvas { max-height: 250px; }
 }
 .show-route-btn:hover { border-color: var(--brand); color: var(--brand); }
 
+.ride-sort-toggle { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.sort-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 0.3rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-family: 'Barlow', sans-serif;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.sort-btn:hover { border-color: var(--brand); color: var(--brand); }
+.sort-btn.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+
 .stat-card-sm {
   background: var(--card2);
   border: 1px solid var(--border);
@@ -1303,6 +1319,32 @@ function renderFillupTable(fillups, theme) {
   </div>`;
 }
 
+function getRideOrder() {
+  try { return localStorage.getItem('mf-ride-order') === 'oldest' ? 'oldest' : 'newest'; }
+  catch (e) { return 'newest'; }
+}
+function setRideOrderPref(order) {
+  try { localStorage.setItem('mf-ride-order', order); } catch (e) {}
+}
+function rideStartMs(r) {
+  const t = r && r.start_time ? new Date(r.start_time).getTime() : NaN;
+  return isNaN(t) ? 0 : t;
+}
+// Reorder existing ride cards in place (don't rebuild) so open route maps keep working.
+function setRideSort(order) {
+  setRideOrderPref(order);
+  document.querySelectorAll('.ride-sort-toggle .sort-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.order === order);
+  });
+  const list = document.querySelector('.rides-list');
+  if (!list) return;
+  const cards = Array.from(list.querySelectorAll('.ride-card-v2'));
+  cards.sort((a, b) => order === 'newest'
+    ? (Number(b.dataset.start) || 0) - (Number(a.dataset.start) || 0)
+    : (Number(a.dataset.start) || 0) - (Number(b.dataset.start) || 0));
+  cards.forEach(c => list.appendChild(c));
+}
+
 function renderRides(rides, theme) {
   rideLocationsCache = {};
   if (!rides.length) {
@@ -1343,7 +1385,10 @@ function renderRides(rides, theme) {
     </div>
   </div>`;
 
-  const sorted = [...rides].reverse();
+  const order = getRideOrder();
+  const sorted = [...rides].sort((a, b) => order === 'newest'
+    ? rideStartMs(b) - rideStartMs(a)
+    : rideStartMs(a) - rideStartMs(b));
   const cards = sorted.map((r, i) => {
     rideLocationsCache[i] = r.ride_locations || [];
     const date     = fmtDate(r.start_time);
@@ -1365,7 +1410,7 @@ function renderRides(rides, theme) {
          </div>`
       : '';
 
-    return `<div class="ride-card-v2">
+    return `<div class="ride-card-v2" data-start="${rideStartMs(r)}">
       <div class="ride-card-header">
         <div><span style="font-weight:600;font-size:0.95rem">${date}</span>${ironButt}</div>
         <button class="show-route-btn" id="ride-btn-${i}" onclick="toggleRideMap(${i},'${theme.color}')">Show Route</button>
@@ -1382,7 +1427,11 @@ function renderRides(rides, theme) {
     </div>`;
   }).join('');
 
-  return `<div class="rides-list">${statsHtml}${cards}</div>`;
+  const toggleHtml = `<div class="ride-sort-toggle">
+      <button class="sort-btn${order === 'newest' ? ' active' : ''}" data-order="newest" onclick="setRideSort('newest')">Newest first</button>
+      <button class="sort-btn${order === 'oldest' ? ' active' : ''}" data-order="oldest" onclick="setRideSort('oldest')">Oldest first</button>
+    </div>`;
+  return `<div class="rides-list">${toggleHtml}${statsHtml}${cards}</div>`;
 }
 
 function toggleRideMap(rideId, themeColor) {
