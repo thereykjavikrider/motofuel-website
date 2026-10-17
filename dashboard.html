@@ -1326,8 +1326,21 @@ function getRideOrder() {
 function setRideOrderPref(order) {
   try { localStorage.setItem('mf-ride-order', order); } catch (e) {}
 }
+// Returns a ride's start time in epoch ms, from whatever format the export used.
+// Handles: number ms, number seconds, numeric string, ISO/date string, Date, null.
+// Never throws, so a bad value can't abort rendering and hide the sort toggle.
 function rideStartMs(r) {
-  const t = r && r.start_time ? new Date(r.start_time).getTime() : NaN;
+  const v = r && r.start_time;
+  if (v == null || v === '') return 0;
+  // Numeric epoch (millis or seconds), as a number or an all-digits string.
+  if (typeof v === 'number' || (typeof v === 'string' && /^\d+$/.test(v.trim()))) {
+    let n = Number(v);
+    if (!isFinite(n)) return 0;
+    if (n > 0 && n < 1e12) n *= 1000; // seconds -> ms
+    return n;
+  }
+  // ISO / other date string (or Date object).
+  const t = new Date(v).getTime();
   return isNaN(t) ? 0 : t;
 }
 // Reorder existing ride cards in place (don't rebuild) so open route maps keep working.
