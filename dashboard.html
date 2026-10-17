@@ -545,6 +545,7 @@ canvas { max-height: 250px; }
 }
 
 .leaflet-tile-pane { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }
+.ride-map-container.map-expanded { position: fixed; inset: 0; z-index: 10000; width: 100vw; height: 100vh; border-radius: 0; }
 </style>
 </head>
 <body>
@@ -1427,6 +1428,50 @@ function toggleRideMap(rideId, themeColor) {
   }).addTo(map);
 
   map.fitBounds(line.getBounds(), { padding: [20, 20] });
+
+  // Full screen toggle (CSS-based, not the Fullscreen API — that fails for maps on iPhone Safari)
+  let fsExpanded = false;
+  let fsBtn;
+  const fsEscHandler = (e) => { if (e.key === 'Escape' && fsExpanded) toggleFullScreen(); };
+  function toggleFullScreen() {
+    fsExpanded = !fsExpanded;
+    if (fsExpanded) {
+      container.classList.add('map-expanded');
+      document.body.style.overflow = 'hidden';
+      fsBtn.innerHTML = '✕';
+      fsBtn.title = 'Exit full screen';
+      fsBtn.setAttribute('aria-label', 'Exit full screen');
+      document.addEventListener('keydown', fsEscHandler);
+    } else {
+      container.classList.remove('map-expanded');
+      document.body.style.overflow = '';
+      fsBtn.innerHTML = '⛶';
+      fsBtn.title = 'Full screen';
+      fsBtn.setAttribute('aria-label', 'Full screen');
+      document.removeEventListener('keydown', fsEscHandler);
+    }
+    map.invalidateSize();
+    map.fitBounds(line.getBounds(), { padding: fsExpanded ? [40, 40] : [20, 20] });
+  }
+
+  const FullScreenControl = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd: function() {
+      const bar = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+      fsBtn = L.DomUtil.create('a', '', bar);
+      fsBtn.href = '#';
+      fsBtn.innerHTML = '⛶';
+      fsBtn.title = 'Full screen';
+      fsBtn.setAttribute('role', 'button');
+      fsBtn.setAttribute('aria-label', 'Full screen');
+      fsBtn.style.fontSize = '18px';
+      L.DomEvent.on(fsBtn, 'click', L.DomEvent.stop);
+      L.DomEvent.on(fsBtn, 'click', toggleFullScreen);
+      return bar;
+    }
+  });
+  map.addControl(new FullScreenControl());
+
   leafletMaps[rideId] = map;
 }
 
