@@ -179,6 +179,7 @@ nav {
 
 /* FILLUP TABLE */
 .table-wrap { overflow-x: auto; }
+tr.fillup-hidden { display: none; }
 table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 th { text-align: left; padding: 0.6rem 1rem; color: var(--muted); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
 td { padding: 0.7rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.04); }
@@ -1295,8 +1296,8 @@ function renderRidingStyle(fillups, theme) {
 
 function renderFillupTable(fillups, theme) {
   if (!fillups.length) return '';
-  const sorted = [...fillups].reverse().slice(0, 50);
-  const rows = sorted.map(f => {
+  const sorted = [...fillups].reverse();
+  const rows = sorted.map((f, idx) => {
     const isBaseline = f.baseline === 1 || f.baseline === true;
     const isPartial  = f.partial  === 1 || f.partial  === true;
 
@@ -1325,7 +1326,7 @@ function renderFillupTable(fillups, theme) {
 
     const rowStyle = isBaseline ? ' style="background:rgba(224,92,0,0.05)"' : '';
 
-    return `<tr${rowStyle}>
+    return `<tr${idx >= 50 ? ' class="fillup-hidden"' : ''}${rowStyle}>
       <td>${f.date ? f.date.substring(0,10) : '—'}</td>
       <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${station}</td>
       <td>${f.odometer ? f.odometer.toLocaleString() + ' km' : '—'}</td>
@@ -1335,16 +1336,34 @@ function renderFillupTable(fillups, theme) {
       <td>${styleCell}</td>
     </tr>`;
   }).join('');
+  const total = fillups.length;
+  const moreBtn = total > 50
+    ? `<button class="show-route-btn" id="fillup-more-btn" style="margin-top:1rem" onclick="showMoreFillups()">Show more (${total - 50} left)</button>`
+    : '';
   return `
   <div class="chart-card">
-    <h3>📋 Fill-up History (last 50)</h3>
+    <h3>📋 Fill-up history (${total})</h3>
     <div class="table-wrap">
-      <table>
+      <table id="fillup-table">
         <thead><tr><th>Date</th><th>Station</th><th>Odometer</th><th>Litres</th><th>Cost</th><th>Economy</th><th>Style</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
+    ${moreBtn}
   </div>`;
+}
+
+// Reveals the next 50 hidden fill-up rows; removes the button when none remain.
+function showMoreFillups() {
+  const table = document.getElementById('fillup-table');
+  const btn = document.getElementById('fillup-more-btn');
+  if (!table || !btn) return;
+  const hidden = table.querySelectorAll('tbody tr.fillup-hidden');
+  let shown = 0;
+  for (let i = 0; i < hidden.length && shown < 50; i++, shown++) hidden[i].classList.remove('fillup-hidden');
+  const left = hidden.length - shown;
+  if (left > 0) btn.textContent = `Show more (${left} left)`;
+  else btn.remove();
 }
 
 function getRideOrder() {
