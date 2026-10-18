@@ -267,6 +267,7 @@ canvas { max-height: 250px; }
   z-index: 50;
   display: flex;
   flex-direction: column;
+  align-items: stretch; /* override align-items:center leaked from the global nav rule, so the whole sidebar left-aligns */
   padding: 1.5rem 0;
 }
 
