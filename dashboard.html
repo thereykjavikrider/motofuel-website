@@ -923,7 +923,7 @@ function renderBike(idx) {
     renderCostChart(fillups, theme) +
     renderRidingStyle(fillups, theme) +
     renderFillupTable(fillups, theme) +
-    renderRides(rides, theme, bike.unit_preference) +
+    renderRides(rides, theme) +
     renderTires(tires, theme) +
     '</div>';
 
@@ -964,7 +964,7 @@ function renderMainPanel(bikeIdx, section) {
   } else if (section === 'rides') {
     html = renderBikeHeader(bike, theme, fillups, rides) +
       '<div class="dashboard-content">' +
-      renderRides(rides, theme, bike.unit_preference) +
+      renderRides(rides, theme) +
       '</div>';
   } else if (section === 'consumables') {
     html = renderBikeHeader(bike, theme, fillups, rides) +
@@ -1363,8 +1363,7 @@ function setRideSort(order) {
   cards.forEach(c => list.appendChild(c));
 }
 
-function renderRides(rides, theme, unitPref) {
-  const speedUnit = unitPref === 'imperial' ? 'mph' : 'km/h';
+function renderRides(rides, theme) {
   rideLocationsCache = {};
   if (!rides.length) {
     return '<div class="empty"><div class="empty-icon">🏍️</div><p>No rides recorded yet</p></div>';
@@ -1432,7 +1431,7 @@ function renderRides(rides, theme, unitPref) {
     return `<div class="ride-card-v2" data-start="${rideStartMs(r)}">
       <div class="ride-card-header">
         <div><span style="font-weight:600;font-size:0.95rem">${date}</span>${ironButt}</div>
-        <button class="show-route-btn" id="ride-btn-${i}" onclick="toggleRideMap(${i},'${theme.color}','${speedUnit}')">Show Route</button>
+        <button class="show-route-btn" id="ride-btn-${i}" onclick="toggleRideMap(${i},'${theme.color}')">Show Route</button>
       </div>
       <div class="ride-card-stats">
         ${stat(dist,   'Distance', true)}
@@ -1454,7 +1453,7 @@ function renderRides(rides, theme, unitPref) {
   return `<div class="rides-list">${toggleHtml}${statsHtml}${cards}</div>`;
 }
 
-function toggleRideMap(rideId, themeColor, speedUnit) {
+function toggleRideMap(rideId, themeColor) {
   const container = document.getElementById('ride-map-' + rideId);
   const btn       = document.getElementById('ride-btn-' + rideId);
   if (!container) return;
@@ -1601,7 +1600,7 @@ function toggleRideMap(rideId, themeColor, speedUnit) {
   map.addControl(new FullScreenControl());
 
   // Speed chart below the map, inside the card (sibling of the map box, so full screen doesn't move it).
-  buildSpeedChart(rideId, themeColor, speedUnit, locations, map);
+  buildSpeedChart(rideId, themeColor, locations, map);
 
   leafletMaps[rideId] = map;
 }
@@ -1613,12 +1612,11 @@ function msToHMM(ms) {
 }
 
 // Draws a speed-vs-time line chart for a ride, styled like the fuel charts.
-// Speed is metres/second; convert to the card's unit. No speed data -> nothing drawn.
-function buildSpeedChart(rideId, themeColor, speedUnit, locations, map) {
+// Speed is metres/second; converted to km/h (x3.6), like the rest of the dashboard.
+// No speed data -> nothing drawn.
+function buildSpeedChart(rideId, themeColor, locations, map) {
   const host = document.getElementById('ride-speed-' + rideId);
   if (!host) return;
-  const unit   = speedUnit === 'mph' ? 'mph' : 'km/h';
-  const factor = unit === 'mph' ? 2.23694 : 3.6;
   const t0 = (locations.find(p => p && p.ts != null) || {}).ts;
   if (t0 == null) return;
   let pts = locations.filter(p => p && p.speed != null && p.ts != null);
@@ -1629,13 +1627,13 @@ function buildSpeedChart(rideId, themeColor, speedUnit, locations, map) {
     pts = pts.filter((_, idx) => idx % step === 0);
   }
   const labels = pts.map(p => msToHMM(p.ts - t0));
-  const data   = pts.map(p => +(p.speed * factor).toFixed(1));
+  const data   = pts.map(p => +(p.speed * 3.6).toFixed(1));
   host.innerHTML = '<div class="ride-speed-title">Speed</div><canvas id="ride-speed-canvas-' + rideId + '"></canvas>';
   const ctx = document.getElementById('ride-speed-canvas-' + rideId);
   map._speedChart = new Chart(ctx, {
     type: 'line',
     data: { labels, datasets: [{
-      label: unit,
+      label: 'km/h',
       data,
       borderColor: themeColor,
       backgroundColor: themeColor + '20',
@@ -1650,7 +1648,7 @@ function buildSpeedChart(rideId, themeColor, speedUnit, locations, map) {
       scales: {
         x: { ticks: { color: '#666', maxTicksLimit: 8, font: { size: 11 } }, grid: { color: '#1a1a1a' } },
         y: {
-          title: { display: true, text: 'Speed (' + unit + ')', color: '#666', font: { size: 11 } },
+          title: { display: true, text: 'Speed (km/h)', color: '#666', font: { size: 11 } },
           ticks: { color: '#666', font: { size: 11 } }, grid: { color: '#1a1a1a' }, beginAtZero: true
         }
       }
