@@ -428,6 +428,28 @@ canvas { max-height: 250px; }
 .ride-speed:empty { display: none; }
 .ride-speed-title { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0.75rem 0 0.5rem; }
 
+.ride-legend { padding: 0.75rem 1.2rem 0; }
+.ride-legend:empty { display: none; }
+.ride-legend-row { display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.78rem; color: var(--muted); align-items: center; }
+.ride-legend-row .leg-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; vertical-align: middle; margin-right: 0.2rem; }
+.ride-legend-row .leg-fuel { font-size: 0.9rem; margin-right: 0.1rem; }
+.ride-legend-note { font-size: 0.7rem; color: #666; margin-top: 0.3rem; }
+
+.ride-fillups { padding: 0 1.2rem 1.2rem; }
+.ride-fillups:empty { display: none; }
+.ride-fillups-title { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0.75rem 0 0.5rem; }
+.ride-fillup-card { background: var(--card2); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem 0.9rem; margin-bottom: 0.5rem; }
+.ride-fillup-card .rf-top { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.2rem; }
+.ride-fillup-card .rf-date { font-weight: 600; font-size: 0.85rem; }
+.ride-fillup-card .rf-odo { font-size: 0.78rem; color: var(--muted); }
+.ride-fillup-card .rf-metrics { font-size: 0.85rem; margin-top: 0.15rem; }
+.ride-fillup-card .rf-style { font-size: 0.75rem; color: var(--muted); margin-top: 0.15rem; }
+.rf-badge { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 0.1rem 0.4rem; border-radius: 3px; }
+.rf-partial { background: rgba(136,136,136,0.15); color: var(--muted); border: 1px solid rgba(136,136,136,0.3); }
+.rf-baseline { background: rgba(224,92,0,0.15); color: var(--brand); border: 1px solid rgba(224,92,0,0.3); }
+
+.fuel-marker { background: #111; border: 2px solid #fff; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
+
 .show-route-btn {
   background: none;
   border: 1px solid var(--border);
@@ -661,6 +683,7 @@ let currentSection = 'fuel';
 let chartInstances = {};
 let leafletMaps = {};
 let rideLocationsCache = {};
+let rideFillupsCache = {};
 let isDemo = false;
 
 // ── FILE IMPORT ───────────────────────────────────────────────────
@@ -923,7 +946,7 @@ function renderBike(idx) {
     renderCostChart(fillups, theme) +
     renderRidingStyle(fillups, theme) +
     renderFillupTable(fillups, theme) +
-    renderRides(rides, theme) +
+    renderRides(rides, theme, fillups, bike.currency || 'kr') +
     renderTires(tires, theme) +
     '</div>';
 
@@ -964,7 +987,7 @@ function renderMainPanel(bikeIdx, section) {
   } else if (section === 'rides') {
     html = renderBikeHeader(bike, theme, fillups, rides) +
       '<div class="dashboard-content">' +
-      renderRides(rides, theme) +
+      renderRides(rides, theme, fillups, bike.currency || 'kr') +
       '</div>';
   } else if (section === 'consumables') {
     html = renderBikeHeader(bike, theme, fillups, rides) +
@@ -1363,8 +1386,11 @@ function setRideSort(order) {
   cards.forEach(c => list.appendChild(c));
 }
 
-function renderRides(rides, theme) {
+function renderRides(rides, theme, fillups, currency) {
   rideLocationsCache = {};
+  rideFillupsCache = {};
+  fillups = fillups || [];
+  currency = currency || 'kr';
   if (!rides.length) {
     return '<div class="empty"><div class="empty-icon">🏍️</div><p>No rides recorded yet</p></div>';
   }
@@ -1409,6 +1435,18 @@ function renderRides(rides, theme) {
     : rideStartMs(a) - rideStartMs(b));
   const cards = sorted.map((r, i) => {
     rideLocationsCache[i] = r.ride_locations || [];
+
+    // Match fill-ups to this ride by odometer range (export has no fill-up times).
+    // fillup_count === 0 means none were logged during the ride, so show none.
+    const span = (r.end_odometer != null && r.start_odometer != null) ? r.end_odometer - r.start_odometer : null;
+    const matched = (r.fillup_count > 0 && r.start_odometer != null && r.end_odometer != null)
+      ? fillups
+          .filter(f => f.odometer != null && f.odometer >= r.start_odometer && f.odometer <= r.end_odometer)
+          .sort((a, b) => a.odometer - b.odometer)
+          .map(f => ({ ...f, _fraction: span > 0 ? Math.min(1, Math.max(0, (f.odometer - r.start_odometer) / span)) : null }))
+      : [];
+    rideFillupsCache[i] = { items: matched, currency };
+
     const date     = fmtDate(r.start_time);
     const ironButt = r.is_iron_butt ? '<span class="badge badge-ironbutt" style="margin-left:0.5rem">🏆 Iron Butt</span>' : '';
     const dur      = r.duration_minutes ? formatDuration(r.duration_minutes) : null;
@@ -1442,7 +1480,9 @@ function renderRides(rides, theme) {
       </div>
       ${odoLine}
       <div class="ride-map-container" id="ride-map-${i}"></div>
+      <div class="ride-legend" id="ride-legend-${i}"></div>
       <div class="ride-speed" id="ride-speed-${i}"></div>
+      <div class="ride-fillups" id="ride-fillups-${i}"></div>
     </div>`;
   }).join('');
 
@@ -1467,8 +1507,10 @@ function toggleRideMap(rideId, themeColor) {
       leafletMaps[rideId].remove();
       delete leafletMaps[rideId];
     }
-    const speedHost = document.getElementById('ride-speed-' + rideId);
-    if (speedHost) speedHost.innerHTML = '';
+    ['ride-speed-', 'ride-legend-', 'ride-fillups-'].forEach(prefix => {
+      const h = document.getElementById(prefix + rideId);
+      if (h) h.innerHTML = '';
+    });
     return;
   }
 
@@ -1478,6 +1520,8 @@ function toggleRideMap(rideId, themeColor) {
   if (!locations.length) {
     container.innerHTML = '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:0.9rem">No GPS data for this ride</div>';
     if (btn) btn.textContent = 'Hide';
+    // No GPS -> no markers/legend, but still show the fill-up list.
+    buildRideFillupList(rideId);
     return;
   }
 
@@ -1602,7 +1646,113 @@ function toggleRideMap(rideId, themeColor) {
   // Speed chart below the map, inside the card (sibling of the map box, so full screen doesn't move it).
   buildSpeedChart(rideId, themeColor, locations, map);
 
+  // Fill-up markers on the map (so they come along in full screen), legend, and list.
+  placeFuelMarkers(map, latlngs, rideId);
+  buildRideLegend(rideId);
+  buildRideFillupList(rideId);
+
   leafletMaps[rideId] = map;
+}
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371, toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+// Point [lat,lon] at `fraction` (0..1) of the route's travelled length.
+function routePointAtFraction(latlngs, fraction) {
+  if (!latlngs.length) return null;
+  if (latlngs.length === 1 || fraction <= 0) return latlngs[0];
+  if (fraction >= 1) return latlngs[latlngs.length - 1];
+  const segs = [];
+  let total = 0;
+  for (let k = 1; k < latlngs.length; k++) {
+    const d = haversineKm(latlngs[k - 1][0], latlngs[k - 1][1], latlngs[k][0], latlngs[k][1]);
+    segs.push(d); total += d;
+  }
+  if (total === 0) return latlngs[0];
+  const target = fraction * total;
+  let acc = 0;
+  for (let k = 0; k < segs.length; k++) {
+    if (acc + segs[k] >= target) {
+      const sf = segs[k] > 0 ? (target - acc) / segs[k] : 0;
+      const a = latlngs[k], b = latlngs[k + 1];
+      return [a[0] + (b[0] - a[0]) * sf, a[1] + (b[1] - a[1]) * sf];
+    }
+    acc += segs[k];
+  }
+  return latlngs[latlngs.length - 1];
+}
+
+function placeFuelMarkers(map, latlngs, rideId) {
+  const entry = rideFillupsCache[rideId];
+  if (!entry || !entry.items.length) return;
+  const currency = entry.currency;
+  const icon = L.divIcon({ className: 'fuel-marker', html: '⛽', iconSize: [26, 26], iconAnchor: [13, 13], popupAnchor: [0, -14] });
+  entry.items.forEach(f => {
+    if (f._fraction == null) return;
+    const pt = routePointAtFraction(latlngs, f._fraction);
+    if (!pt) return;
+    const date = f.date ? f.date.substring(0, 10) : '—';
+    const odo  = f.odometer != null ? f.odometer.toLocaleString() + ' km' : '—';
+    const litres = f.litres ? f.litres.toFixed(2) + ' L' : '—';
+    const cost = f.total_cost ? f.total_cost.toLocaleString() + ' ' + currency : '—';
+    const econ = (f.economy > 0 && !(f.baseline === 1 || f.baseline === true)) ? f.economy.toFixed(1) + ' L/100km' : '—';
+    L.marker(pt, { icon }).addTo(map).bindPopup(
+      '<div style="font-size:0.8rem;line-height:1.5"><strong>' + date + '</strong><br>' +
+      odo + '<br>' + litres + ' · ' + cost + '<br>' + econ + '</div>'
+    );
+  });
+}
+
+function buildRideLegend(rideId) {
+  const host = document.getElementById('ride-legend-' + rideId);
+  if (!host) return;
+  host.innerHTML =
+    '<div class="ride-legend-row">' +
+      '<span><span class="leg-dot" style="background:#22c55e"></span> Start</span>' +
+      '<span><span class="leg-dot" style="background:#e05c00"></span> End</span>' +
+      '<span><span class="leg-fuel">⛽</span> Fill-up stop</span>' +
+    '</div>' +
+    '<div class="ride-legend-note">Fill-up positions are estimated from the odometer.</div>';
+}
+
+function buildRideFillupList(rideId) {
+  const host = document.getElementById('ride-fillups-' + rideId);
+  if (!host) return;
+  const entry = rideFillupsCache[rideId];
+  const items = entry ? entry.items : [];
+  if (!items.length) { host.innerHTML = ''; return; }
+  const currency = entry.currency;
+  const cards = items.map(f => {
+    const isBaseline = f.baseline === 1 || f.baseline === true;
+    const isPartial  = f.partial  === 1 || f.partial  === true;
+    const date = f.date ? f.date.substring(0, 10) : '—';
+    const odo  = f.odometer != null ? f.odometer.toLocaleString() + ' km' : '—';
+    const since = f.distance_km > 0 ? ' · +' + Math.round(f.distance_km).toLocaleString() + ' km' : '';
+    const litres = f.litres ? f.litres.toFixed(2) + ' L' : '—';
+    const cost = f.total_cost ? f.total_cost.toLocaleString() + ' ' + currency : '—';
+    const econ = (f.economy > 0 && !isBaseline) ? f.economy.toFixed(1) + ' L/100km' : (isBaseline ? 'Baseline' : '—');
+    const pctParts = [];
+    if ((f.on_road_pct   || 0) > 0) pctParts.push('Rd ' + f.on_road_pct + '%');
+    if ((f.off_road_pct  || 0) > 0) pctParts.push('Off ' + f.off_road_pct + '%');
+    if ((f.in_town_pct   || 0) > 0) pctParts.push('Town ' + f.in_town_pct + '%');
+    if ((f.track_day_pct || 0) > 0) pctParts.push('Track ' + f.track_day_pct + '%');
+    if ((f.mixed_pct     || 0) > 0) pctParts.push('Mixed ' + f.mixed_pct + '%');
+    const styleRow = pctParts.length ? '<div class="rf-style">' + pctParts.join(' · ') + '</div>' : '';
+    const badges =
+      (isPartial  ? '<span class="rf-badge rf-partial">Partial</span>'   : '') +
+      (isBaseline ? '<span class="rf-badge rf-baseline">Baseline</span>' : '');
+    return '<div class="ride-fillup-card">' +
+      '<div class="rf-top"><span class="rf-date">' + date + '</span>' + badges + '</div>' +
+      '<div class="rf-odo">' + odo + since + '</div>' +
+      '<div class="rf-metrics">' + litres + ' · ' + cost + ' · ' + econ + '</div>' +
+      styleRow +
+    '</div>';
+  }).join('');
+  host.innerHTML = '<div class="ride-fillups-title">Fill-ups during this ride</div>' + cards;
 }
 
 function msToHMM(ms) {
