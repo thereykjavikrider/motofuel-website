@@ -1648,7 +1648,9 @@ function toggleRideMap(rideId, themeColor) {
 
   // Fill-up markers on the map (so they come along in full screen), legend, and list.
   placeFuelMarkers(map, latlngs, rideId);
-  buildRideLegend(rideId);
+  const fuelEntry = rideFillupsCache[rideId];
+  const hasFuelMarkers = !!(fuelEntry && fuelEntry.items.some(f => f._fraction != null));
+  buildRideLegend(rideId, hasFuelMarkers);
   buildRideFillupList(rideId);
 
   leafletMaps[rideId] = map;
@@ -1707,16 +1709,19 @@ function placeFuelMarkers(map, latlngs, rideId) {
   });
 }
 
-function buildRideLegend(rideId) {
+function buildRideLegend(rideId, hasFuelMarkers) {
   const host = document.getElementById('ride-legend-' + rideId);
   if (!host) return;
+  // Start/End always; the fuel-stop key and estimate note only when a marker is on the map.
+  const fuelPart = hasFuelMarkers ? '<span><span class="leg-fuel">⛽</span> Fill-up stop</span>' : '';
+  const note = hasFuelMarkers ? '<div class="ride-legend-note">Fill-up positions are estimated from the odometer.</div>' : '';
   host.innerHTML =
     '<div class="ride-legend-row">' +
       '<span><span class="leg-dot" style="background:#22c55e"></span> Start</span>' +
       '<span><span class="leg-dot" style="background:#e05c00"></span> End</span>' +
-      '<span><span class="leg-fuel">⛽</span> Fill-up stop</span>' +
+      fuelPart +
     '</div>' +
-    '<div class="ride-legend-note">Fill-up positions are estimated from the odometer.</div>';
+    note;
 }
 
 function buildRideFillupList(rideId) {
