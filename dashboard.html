@@ -466,6 +466,7 @@ canvas { max-height: 250px; }
 .show-route-btn:hover { border-color: var(--brand); color: var(--brand); }
 
 .ride-sort-toggle { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.fuel-range-toggle { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .sort-btn {
   background: none;
   border: 1px solid var(--border);
@@ -685,6 +686,7 @@ let chartInstances = {};
 let leafletMaps = {};
 let rideLocationsCache = {};
 let rideFillupsCache = {};
+let fuelChartData = null;
 let isDemo = false;
 
 // ── FILE IMPORT ───────────────────────────────────────────────────
@@ -980,6 +982,7 @@ function renderMainPanel(bikeIdx, section) {
     html = renderBikeHeader(bike, theme, fillups, rides) +
       '<div class="dashboard-content">' +
       renderFuelSummary(fillups, theme, bike.currency || 'kr') +
+      renderFuelRangeToggle() +
       renderEconomyChart(fillups, theme) +
       renderCostChart(fillups, theme) +
       renderRidingStyle(fillups, theme) +
@@ -1008,6 +1011,7 @@ function renderMainPanel(bikeIdx, section) {
   panel.style.animation = 'section-fade 0.2s ease';
 
   if (section === 'fuel') {
+    fuelChartData = { fillups, theme };
     setTimeout(() => {
       initEconomyChart(fillups, theme);
       initCostChart(fillups, theme);
@@ -1121,6 +1125,47 @@ function renderFuelSummary(fillups, theme, currency) {
   </div>`;
 }
 
+function getFuelRange() {
+  try { const v = localStorage.getItem('mf-fuel-range'); return (v === 'year' || v === 'all') ? v : '30'; }
+  catch (e) { return '30'; }
+}
+function setFuelRangePref(range) {
+  try { localStorage.setItem('mf-fuel-range', range); } catch (e) {}
+}
+function fillupMs(f) {
+  const t = f && f.date ? new Date(f.date).getTime() : NaN;
+  return isNaN(t) ? null : t;
+}
+// Applies the selected range to an already-filtered set. '1 year' is measured from the
+// bike's newest fill-up date (not today), so historic demo data isn't filtered to empty.
+function applyFuelRange(valid, allFillups, range) {
+  if (range === 'all') return valid;
+  if (range === 'year') {
+    let newest = null;
+    for (const f of allFillups) { const t = fillupMs(f); if (t != null && (newest == null || t > newest)) newest = t; }
+    if (newest == null) return valid;
+    const cutoff = newest - 365 * 24 * 60 * 60 * 1000;
+    return valid.filter(f => { const t = fillupMs(f); return t != null && t >= cutoff; });
+  }
+  return valid.slice(-30); // default
+}
+
+function renderFuelRangeToggle() {
+  const r = getFuelRange();
+  const opt = (val, label) => `<button class="sort-btn${r === val ? ' active' : ''}" data-range="${val}" onclick="setFuelRange('${val}')">${label}</button>`;
+  return `<div class="fuel-range-toggle">${opt('30', 'Last 30')}${opt('year', '1 year')}${opt('all', 'All')}</div>`;
+}
+
+// Re-draws all three fuel charts for the newly-picked range, destroying the old instances first.
+function setFuelRange(range) {
+  setFuelRangePref(range);
+  document.querySelectorAll('.fuel-range-toggle .sort-btn').forEach(b => b.classList.toggle('active', b.dataset.range === range));
+  if (!fuelChartData) return;
+  ['economy', 'dist', 'cost'].forEach(k => { if (chartInstances[k]) { chartInstances[k].destroy(); delete chartInstances[k]; } });
+  initEconomyChart(fuelChartData.fillups, fuelChartData.theme);
+  initCostChart(fuelChartData.fillups, fuelChartData.theme);
+}
+
 function renderEconomyChart(fillups, theme) {
   return `<div class="chart-card"><h3>⛽ Fuel Economy — L/100km</h3><canvas id="economy-chart"></canvas></div>`;
 }
@@ -1133,7 +1178,7 @@ function renderCostChart(fillups, theme) {
 }
 
 function initEconomyChart(fillups, theme) {
-  const valid = fillups.filter(f => f.economy > 0 && !f.baseline).slice(-30);
+  const valid = applyFuelRange(fillups.filter(f => f.economy > 0 && !f.baseline), fillups, getFuelRange());
   if (!valid.length) return;
   const ctx = document.getElementById('economy-chart');
   if (!ctx) return;
@@ -1150,7 +1195,7 @@ function initEconomyChart(fillups, theme) {
           backgroundColor: theme.color + '20',
           tension: 0.4,
           fill: true,
-          pointRadius: 4,
+          pointRadius: valid.length > 60 ? 0 : 4,
           pointBackgroundColor: theme.color,
           order: 1,
         },
@@ -1225,7 +1270,7 @@ function initEconomyChart(fillups, theme) {
 }
 
 function initCostChart(fillups, theme) {
-  const valid = fillups.filter(f => f.total_cost > 0).slice(-30);
+  const valid = applyFuelRange(fillups.filter(f => f.total_cost > 0), fillups, getFuelRange());
   if (!valid.length) return;
   const ctx = document.getElementById('cost-chart');
   if (!ctx) return;
