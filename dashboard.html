@@ -813,19 +813,47 @@ function normaliseData(raw) {
   else if (Array.isArray(raw)) { bikes = raw; }
   else if (raw.make || raw.model || raw.fillups) { bikes = [raw]; }
 
-  // Calculate economy and distance from odometer readings
+  // Per-fill-up economy and "+N km" distance — matches the app's getFillups (build 38).
+  // Partials roll their litres/cost into the next full fill-up; baselines reset the anchor.
+  // No tire-size correction (the export lacks the inputs), so the factor is 1.
   bikes = bikes.map(bike => {
-    const fillups = (bike.fillups || []).map((f, i, arr) => {
-      const prev = arr.slice(0, i).reverse().find(p => !p.partial && !p.baseline);
-      let economy = null;
-      let distance_km = null;
-      if (prev && !f.partial && !f.baseline && f.odometer && prev.odometer) {
-        distance_km = f.odometer - prev.odometer;
-        if (distance_km > 0 && f.litres > 0) {
-          economy = (f.litres / distance_km) * 100;
-        }
+    const sorted = [...(bike.fillups || [])].sort((a, b) => (a.odometer || 0) - (b.odometer || 0));
+    let lastFullOdometer = (bike.initial_odometer != null) ? bike.initial_odometer : null;
+    let accLitres = 0;
+    let accCost = 0;
+    const fillups = sorted.map((f, i) => {
+      const isBaseline = f.baseline === 1 || f.baseline === true;
+      const isPartial  = f.partial  === 1 || f.partial  === true;
+      // "+N km": distance from the immediately previous fill-up of any type; empty for the first.
+      const prev = i > 0 ? sorted[i - 1] : null;
+      const distance_km = (prev && f.odometer != null && prev.odometer != null)
+        ? f.odometer - prev.odometer
+        : null;
+
+      if (isBaseline) {
+        accLitres = 0; accCost = 0;
+        lastFullOdometer = f.odometer;
+        return { ...f, economy: null, cost_per_km: null, distance_km };
       }
-      return { ...f, economy, distance_km };
+
+      accLitres += (f.litres || 0);
+      accCost   += (f.total_cost || 0);
+
+      let economy = null;
+      let cost_per_km = null;
+      if (!isPartial) {
+        const d = (lastFullOdometer != null) ? f.odometer - lastFullOdometer : null;
+        if (d != null && d > 0) {
+          economy = (accLitres / d) * 100;
+          cost_per_km = accCost / d;
+        }
+        accLitres = 0; accCost = 0;
+        lastFullOdometer = f.odometer;
+      } else {
+        if (lastFullOdometer == null) lastFullOdometer = f.odometer;
+      }
+
+      return { ...f, economy, cost_per_km, distance_km };
     });
     return { ...bike, fillups };
   });
