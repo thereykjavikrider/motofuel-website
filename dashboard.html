@@ -442,6 +442,7 @@ canvas { max-height: 250px; }
 .ride-fillup-card { background: var(--card2); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem 0.9rem; margin-bottom: 0.5rem; }
 .ride-fillup-card .rf-top { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.2rem; }
 .ride-fillup-card .rf-date { font-weight: 600; font-size: 0.85rem; }
+.ride-fillup-card .rf-station { font-size: 0.78rem; color: var(--muted); margin-top: 0.1rem; }
 .ride-fillup-card .rf-odo { font-size: 0.78rem; color: var(--muted); }
 .ride-fillup-card .rf-metrics { font-size: 0.85rem; margin-top: 0.15rem; }
 .ride-fillup-card .rf-style { font-size: 0.75rem; color: var(--muted); margin-top: 0.15rem; }
@@ -1378,6 +1379,8 @@ function renderFillupTable(fillups, theme) {
   // Follow the Fuel range switch — every fill-up in range (no economy/cost filter), newest first.
   const ranged = applyFuelRange(fillups, fillups, getFuelRange());
   const sorted = [...ranged].reverse();
+  // Only show the Station column if at least one of the bike's fill-ups names a station.
+  const hasStation = fillups.some(f => f.station_name && String(f.station_name).trim() !== '');
   const rows = sorted.map((f, idx) => {
     const isBaseline = f.baseline === 1 || f.baseline === true;
     const isPartial  = f.partial  === 1 || f.partial  === true;
@@ -1394,6 +1397,9 @@ function renderFillupTable(fillups, theme) {
     const station = f.station_name
       ? (f.station_name.length > 20 ? f.station_name.substring(0, 20) + '…' : f.station_name)
       : `<span style="color:var(--muted)">—</span>`;
+    const stationCell = hasStation
+      ? `<td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${station}</td>`
+      : '';
 
     const pctParts = [];
     if ((f.on_road_pct   || 0) > 0) pctParts.push(`Rd ${f.on_road_pct}%`);
@@ -1409,7 +1415,7 @@ function renderFillupTable(fillups, theme) {
 
     return `<tr${idx >= 50 ? ' class="fillup-hidden"' : ''}${rowStyle}>
       <td>${f.date ? f.date.substring(0,10) : '—'}</td>
-      <td style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${station}</td>
+      ${stationCell}
       <td>${f.odometer ? f.odometer.toLocaleString() + ' km' : '—'}</td>
       <td>${litresCell}</td>
       <td>${f.total_cost ? f.total_cost.toLocaleString() : '—'}</td>
@@ -1428,7 +1434,7 @@ function renderFillupTable(fillups, theme) {
     <h3>📋 ${heading}</h3>
     <div class="table-wrap">
       <table id="fillup-table">
-        <thead><tr><th>Date</th><th>Station</th><th>Odometer</th><th>Litres</th><th>Cost</th><th>Economy</th><th>Style</th></tr></thead>
+        <thead><tr><th>Date</th>${hasStation ? '<th>Station</th>' : ''}<th>Odometer</th><th>Litres</th><th>Cost</th><th>Economy</th><th>Style</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
@@ -1749,10 +1755,8 @@ function toggleRideMap(rideId, themeColor) {
   buildSpeedChart(rideId, themeColor, locations, map);
 
   // Fill-up markers on the map (so they come along in full screen), legend, and list.
-  placeFuelMarkers(map, latlngs, rideId);
-  const fuelEntry = rideFillupsCache[rideId];
-  const hasFuelMarkers = !!(fuelEntry && fuelEntry.items.some(f => f._fraction != null));
-  buildRideLegend(rideId, hasFuelMarkers);
+  const markerInfo = placeFuelMarkers(map, latlngs, rideId);
+  buildRideLegend(rideId, markerInfo.placed > 0, markerInfo.estimated > 0);
   buildRideFillupList(rideId);
 
   leafletMaps[rideId] = map;
@@ -1792,31 +1796,44 @@ function routePointAtFraction(latlngs, fraction) {
 
 function placeFuelMarkers(map, latlngs, rideId) {
   const entry = rideFillupsCache[rideId];
-  if (!entry || !entry.items.length) return;
+  if (!entry || !entry.items.length) return { placed: 0, estimated: 0 };
   const currency = entry.currency;
   const icon = L.divIcon({ className: 'fuel-marker', html: '⛽', iconSize: [26, 26], iconAnchor: [13, 13], popupAnchor: [0, -14] });
+  let placed = 0, estimated = 0;
   entry.items.forEach(f => {
-    if (f._fraction == null) return;
-    const pt = routePointAtFraction(latlngs, f._fraction);
+    // Use the exact station position when the app exported it; otherwise estimate from the odometer.
+    const hasCoords = typeof f.station_lat === 'number' && isFinite(f.station_lat) &&
+                      typeof f.station_lng === 'number' && isFinite(f.station_lng);
+    let pt = null, isEstimate = false;
+    if (hasCoords) {
+      pt = [f.station_lat, f.station_lng];
+    } else if (f._fraction != null) {
+      pt = routePointAtFraction(latlngs, f._fraction);
+      isEstimate = true;
+    }
     if (!pt) return;
+    placed++; if (isEstimate) estimated++;
     const date = f.date ? f.date.substring(0, 10) : '—';
+    const stationLine = f.station_name ? '<br>' + f.station_name : '';
     const odo  = f.odometer != null ? f.odometer.toLocaleString() + ' km' : '—';
     const litres = f.litres ? f.litres.toFixed(2) + ' L' : '—';
     const cost = f.total_cost ? f.total_cost.toLocaleString() + ' ' + currency : '—';
     const econ = (f.economy > 0 && !(f.baseline === 1 || f.baseline === true)) ? f.economy.toFixed(1) + ' L/100km' : '—';
     L.marker(pt, { icon }).addTo(map).bindPopup(
-      '<div style="font-size:0.8rem;line-height:1.5"><strong>' + date + '</strong><br>' +
+      '<div style="font-size:0.8rem;line-height:1.5"><strong>' + date + '</strong>' + stationLine + '<br>' +
       odo + '<br>' + litres + ' · ' + cost + '<br>' + econ + '</div>'
     );
   });
+  return { placed, estimated };
 }
 
-function buildRideLegend(rideId, hasFuelMarkers) {
+function buildRideLegend(rideId, hasFuelMarkers, hasEstimated) {
   const host = document.getElementById('ride-legend-' + rideId);
   if (!host) return;
-  // Start/End always; the fuel-stop key and estimate note only when a marker is on the map.
+  // Start/End always; the fuel-stop key when any marker is on the map; the estimate note
+  // only when at least one of those markers was placed from the odometer estimate.
   const fuelPart = hasFuelMarkers ? '<span><span class="leg-fuel">⛽</span> Fill-up stop</span>' : '';
-  const note = hasFuelMarkers ? '<div class="ride-legend-note">Fill-up positions are estimated from the odometer.</div>' : '';
+  const note = hasEstimated ? '<div class="ride-legend-note">Fill-up positions are estimated from the odometer.</div>' : '';
   host.innerHTML =
     '<div class="ride-legend-row">' +
       '<span><span class="leg-dot" style="background:#22c55e"></span> Start</span>' +
@@ -1852,8 +1869,10 @@ function buildRideFillupList(rideId) {
     const badges =
       (isPartial  ? '<span class="rf-badge rf-partial">Partial</span>'   : '') +
       (isBaseline ? '<span class="rf-badge rf-baseline">Baseline</span>' : '');
+    const stationRow = f.station_name ? '<div class="rf-station">' + f.station_name + '</div>' : '';
     return '<div class="ride-fillup-card">' +
       '<div class="rf-top"><span class="rf-date">' + date + '</span>' + badges + '</div>' +
+      stationRow +
       '<div class="rf-odo">' + odo + since + '</div>' +
       '<div class="rf-metrics">' + litres + ' · ' + cost + ' · ' + econ + '</div>' +
       styleRow +
