@@ -1164,6 +1164,8 @@ function setFuelRange(range) {
   ['economy', 'dist', 'cost'].forEach(k => { if (chartInstances[k]) { chartInstances[k].destroy(); delete chartInstances[k]; } });
   initEconomyChart(fuelChartData.fillups, fuelChartData.theme);
   initCostChart(fuelChartData.fillups, fuelChartData.theme);
+  const fc = document.getElementById('fillup-card');
+  if (fc) fc.outerHTML = renderFillupTable(fuelChartData.fillups, fuelChartData.theme);
 }
 
 function renderEconomyChart(fillups, theme) {
@@ -1341,7 +1343,9 @@ function renderRidingStyle(fillups, theme) {
 
 function renderFillupTable(fillups, theme) {
   if (!fillups.length) return '';
-  const sorted = [...fillups].reverse();
+  // Follow the Fuel range switch — every fill-up in range (no economy/cost filter), newest first.
+  const ranged = applyFuelRange(fillups, fillups, getFuelRange());
+  const sorted = [...ranged].reverse();
   const rows = sorted.map((f, idx) => {
     const isBaseline = f.baseline === 1 || f.baseline === true;
     const isPartial  = f.partial  === 1 || f.partial  === true;
@@ -1382,12 +1386,14 @@ function renderFillupTable(fillups, theme) {
     </tr>`;
   }).join('');
   const total = fillups.length;
-  const moreBtn = total > 50
-    ? `<button class="show-route-btn" id="fillup-more-btn" style="margin-top:1rem" onclick="showMoreFillups()">Show more (${total - 50} left)</button>`
+  const shownCount = sorted.length;
+  const moreBtn = shownCount > 50
+    ? `<button class="show-route-btn" id="fillup-more-btn" style="margin-top:1rem" onclick="showMoreFillups()">Show more (${shownCount - 50} left)</button>`
     : '';
+  const heading = shownCount === total ? `Fill-up history (${total})` : `Fill-up history (${shownCount} of ${total})`;
   return `
-  <div class="chart-card">
-    <h3>📋 Fill-up history (${total})</h3>
+  <div class="chart-card" id="fillup-card">
+    <h3>📋 ${heading}</h3>
     <div class="table-wrap">
       <table id="fillup-table">
         <thead><tr><th>Date</th><th>Station</th><th>Odometer</th><th>Litres</th><th>Cost</th><th>Economy</th><th>Style</th></tr></thead>
