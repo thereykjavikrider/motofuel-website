@@ -1055,7 +1055,13 @@ function renderMainPanel(bikeIdx, section) {
 function renderBikeHeader(bike, theme, fillups, rides) {
   const validFillups = fillups.filter(f => f.economy != null && f.economy > 0 && !f.baseline);
   const avgEconomy = validFillups.length ? (validFillups.reduce((s,f) => s + f.economy, 0) / validFillups.length).toFixed(1) : '—';
-  const totalKm = fillups.length ? Math.max(...fillups.map(f => f.odometer || 0)) - Math.min(...fillups.map(f => f.odometer || 0)) : 0;
+  // Total distance from the bike's initial_odometer (like the app); fall back to the
+  // span between fill-ups only when initial_odometer isn't set.
+  const totalKm = fillups.length
+    ? (bike.initial_odometer != null
+        ? Math.max(...fillups.map(f => f.odometer || 0)) - bike.initial_odometer
+        : Math.max(...fillups.map(f => f.odometer || 0)) - Math.min(...fillups.map(f => f.odometer || 0)))
+    : 0;
   const totalCost = fillups.reduce((s,f) => s + (f.total_cost || 0), 0);
   const totalLitres = fillups.reduce((s,f) => s + (f.litres || 0), 0);
   const currency = bike.currency || 'kr';
