@@ -3,6 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+// Pre-paint: outside the demo, hide the import cards until the load logic decides (from
+// IndexedDB) whether to restore. Safety net removes the class if that logic never runs.
+try {
+  if (new URLSearchParams(location.search).get('demo') !== '1') {
+    document.documentElement.classList.add('mf-boot');
+    setTimeout(function () { document.documentElement.classList.remove('mf-boot'); }, 10000);
+  }
+} catch (e) {}
+</script>
 <title>My MotoFuel Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&family=Oswald:wght@400;600;700&family=Bebas+Neue&family=Rajdhani:wght@600;700&family=Titillium+Web:wght@400;600;700&family=Playfair+Display:wght@700;900&family=Racing+Sans+One&family=Rye&display=swap" rel="stylesheet">
@@ -72,8 +82,9 @@ nav {
   font-family: 'Barlow', sans-serif;
   font-size: 1.1rem;
 }
-html.restoring #import-screen { display: none; }
-html.restoring #loading-screen { display: flex; }
+html.mf-boot #import-screen { display: none; }
+html.mf-loading #import-screen { display: none; }
+html.mf-loading #loading-screen { display: flex; }
 
 .import-title {
   font-family: 'Barlow Condensed', sans-serif;
@@ -611,17 +622,6 @@ canvas { max-height: 250px; }
 </head>
 <body>
 
-<!-- Pre-paint: if saved data exists (and this isn't the demo), show the loading state from the
-     very first paint instead of the import screen, so there's no flash while IndexedDB restores. -->
-<script>
-try {
-  if (new URLSearchParams(location.search).get('demo') !== '1' &&
-      localStorage.getItem('mf-has-data') === '1') {
-    document.documentElement.classList.add('restoring');
-  }
-} catch (e) {}
-</script>
-
 <!-- NAV -->
 <nav>
   <div style="display:flex;align-items:center;">
@@ -734,6 +734,7 @@ fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
 const IDB_NAME = 'motofuel-dashboard';
 const IDB_STORE = 'kv';
 const IDB_KEY = 'dashboard-data';
+const IDB_META = 'meta';
 
 function idbOpen() {
   return new Promise((resolve, reject) => {
@@ -770,6 +771,40 @@ function idbDelete() {
     tx.objectStore(IDB_STORE).delete(IDB_KEY);
   }));
 }
+// Tiny meta record stored alongside the data; read first on load to decide the screen.
+function idbSetMeta() {
+  return idbOpen().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+    tx.objectStore(IDB_STORE).put({ hasData: true, savedAt: Date.now() }, IDB_META);
+  }));
+}
+function idbGetMeta() {
+  return idbOpen().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const r = tx.objectStore(IDB_STORE).get(IDB_META);
+    r.onsuccess = () => { db.close(); resolve(r.result == null ? null : r.result); };
+    r.onerror = () => { db.close(); reject(r.error); };
+  }));
+}
+function idbDeleteMeta() {
+  return idbOpen().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+    tx.objectStore(IDB_STORE).delete(IDB_META);
+  }));
+}
+// Cheap existence check for the data record — doesn't read the ~27 MB value.
+function idbHasData() {
+  return idbOpen().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const r = tx.objectStore(IDB_STORE).count(IDB_KEY);
+    r.onsuccess = () => { db.close(); resolve(r.result > 0); };
+    r.onerror = () => { db.close(); reject(r.error); };
+  }));
+}
 
 function showSaveNotice() {
   if (document.getElementById('mf-save-notice')) return;
@@ -788,8 +823,8 @@ function hideSaveNotice() {
 function saveDashboardData() {
   if (isDemo || !allData) return;
   idbSet(allData)
-    .then(() => { hideSaveNotice(); try { localStorage.setItem('mf-has-data', '1'); } catch (e) {} })
-    .catch(() => { showSaveNotice(); try { localStorage.removeItem('mf-has-data'); } catch (e) {} });
+    .then(() => { hideSaveNotice(); idbSetMeta().catch(() => {}); })
+    .catch(() => { showSaveNotice(); idbDeleteMeta().catch(() => {}); });
 }
 
 function handleFile(file) {
@@ -851,30 +886,50 @@ window.addEventListener('load', async () => {
   }
   if (checkUrlHash()) return;
 
+  // Decide from the tiny meta record (not the big dataset) whether there's data to restore.
+  let present = false;
+  try {
+    const meta = await idbGetMeta();
+    if (meta && meta.hasData) {
+      present = true;
+    } else if (await idbHasData()) {
+      // Older save written before meta existed — adopt it.
+      present = true;
+      idbSetMeta().catch(() => {});
+    } else {
+      // Legacy localStorage copy from before IndexedDB.
+      let legacy = null;
+      try { legacy = localStorage.getItem('mf_dashboard_data'); } catch(e) {}
+      if (legacy) {
+        try { await idbSet(JSON.parse(legacy)); await idbSetMeta(); present = true; } catch(e) {}
+        try { localStorage.removeItem('mf_dashboard_data'); } catch(e) {}
+      }
+    }
+  } catch(e) { present = false; }
+
+  if (!present) { showImportScreen(); return; }
+
+  // Meta says data exists: show the loading state, then read the (large) dataset.
+  showLoading();
   let stored = null;
   try { stored = await idbGet(); } catch(e) {}
-
-  // One-time migration: move any legacy localStorage copy into IndexedDB, then drop it.
-  if (!stored) {
-    let legacy = null;
-    try { legacy = localStorage.getItem('mf_dashboard_data'); } catch(e) {}
-    if (legacy) {
-      try { await idbSet(JSON.parse(legacy)); stored = await idbGet(); } catch(e) {}
-      try { localStorage.removeItem('mf_dashboard_data'); } catch(e) {}
-    }
-  }
-
   if (stored) {
-    try { allData = normaliseData(stored); showDashboard(); } catch(e) {}
+    try { allData = normaliseData(stored); showDashboard(); return; } catch(e) {}
   }
-
-  // Nothing usable restored (e.g. the browser cleared IndexedDB): drop the stale flag and
-  // fall back to the import screen by removing the pre-paint loading state.
-  if (!allData) {
-    try { localStorage.removeItem('mf-has-data'); } catch(e) {}
-    document.documentElement.classList.remove('restoring');
-  }
+  // Meta claimed data but it's gone/unusable: clean up and show the import screen.
+  idbDeleteMeta().catch(() => {});
+  showImportScreen();
 });
+
+function showLoading() {
+  document.documentElement.classList.remove('mf-boot');
+  document.documentElement.classList.add('mf-loading');
+}
+function showImportScreen() {
+  document.documentElement.classList.remove('mf-boot', 'mf-loading');
+  const imp = document.getElementById('import-screen'); if (imp) imp.style.display = 'flex';
+  const dash = document.getElementById('dashboard'); if (dash) dash.style.display = 'none';
+}
 
 function normaliseData(raw) {
   let bikes = [];
@@ -979,10 +1034,10 @@ function resetDashboard() {
   allData = null;
   isDemo = false;
   hideSaveNotice();
-  document.documentElement.classList.remove('restoring');
-  try { localStorage.removeItem('mf-has-data'); } catch(e) {}
+  document.documentElement.classList.remove('mf-boot', 'mf-loading');
   try { localStorage.removeItem('mf_dashboard_data'); } catch(e) {}
   idbDelete().catch(() => {});
+  idbDeleteMeta().catch(() => {});
   document.title = 'My MotoFuel Dashboard';
   document.getElementById('import-screen').style.display = 'flex';
   document.getElementById('dashboard').style.display = 'none';
@@ -998,7 +1053,7 @@ function resetDashboard() {
 
 // ── SHOW DASHBOARD ────────────────────────────────────────────────
 function showDashboard() {
-  document.documentElement.classList.remove('restoring');
+  document.documentElement.classList.remove('mf-boot', 'mf-loading');
   saveDashboardData();
   document.getElementById('import-screen').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
