@@ -699,6 +699,69 @@ dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-ove
 dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
 fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
 
+// ── Persistent storage (IndexedDB) ────────────────────────────────
+// The all-bikes export can be 40–50 MB — far over Safari's ~5 MB localStorage
+// quota — so the dashboard dataset lives in IndexedDB. Small settings
+// (mf-ride-order, mf-fuel-range) stay in localStorage.
+const IDB_NAME = 'motofuel-dashboard';
+const IDB_STORE = 'kv';
+const IDB_KEY = 'dashboard-data';
+
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === 'undefined') { reject(new Error('no IndexedDB')); return; }
+    let req;
+    try { req = indexedDB.open(IDB_NAME, 1); } catch (e) { reject(e); return; }
+    req.onupgradeneeded = () => { try { req.result.createObjectStore(IDB_STORE); } catch (e) {} };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function idbSet(value) {
+  return idbOpen().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+    tx.onabort = () => { db.close(); reject(tx.error || new Error('aborted')); };
+    tx.objectStore(IDB_STORE).put(value, IDB_KEY);
+  }));
+}
+function idbGet() {
+  return idbOpen().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const r = tx.objectStore(IDB_STORE).get(IDB_KEY);
+    r.onsuccess = () => { db.close(); resolve(r.result == null ? null : r.result); };
+    r.onerror = () => { db.close(); reject(r.error); };
+  }));
+}
+function idbDelete() {
+  return idbOpen().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+    tx.objectStore(IDB_STORE).delete(IDB_KEY);
+  }));
+}
+
+function showSaveNotice() {
+  if (document.getElementById('mf-save-notice')) return;
+  const n = document.createElement('div');
+  n.id = 'mf-save-notice';
+  n.textContent = "Your data couldn't be saved in this browser. You'll need to import it again next time.";
+  n.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:12000;background:#7f1d1d;color:#fff;font-size:0.85rem;line-height:1.4;padding:0.6rem 1rem;text-align:center;font-family:Barlow,sans-serif';
+  document.body.appendChild(n);
+}
+function hideSaveNotice() {
+  const n = document.getElementById('mf-save-notice');
+  if (n) n.remove();
+}
+
+// Persist the current (non-demo) dataset to IndexedDB; never fail silently.
+function saveDashboardData() {
+  if (isDemo || !allData) return;
+  idbSet(allData).then(hideSaveNotice).catch(showSaveNotice);
+}
+
 function handleFile(file) {
   if (!file) return;
   const reader = new FileReader();
@@ -750,20 +813,29 @@ function checkUrlHash() {
   }
 }
 
-// Check on load — URL ?demo=1 first, then URL hash, then localStorage
-window.addEventListener('load', () => {
+// Check on load — URL ?demo=1 first, then URL hash, then saved data (IndexedDB)
+window.addEventListener('load', async () => {
   if (new URLSearchParams(window.location.search).get('demo') === '1') {
     loadDemo();
     return;
   }
-  if (!checkUrlHash()) {
-    try {
-      const saved = localStorage.getItem('mf_dashboard_data');
-      if (saved) {
-        allData = normaliseData(JSON.parse(saved));
-        showDashboard();
-      }
-    } catch(e) {}
+  if (checkUrlHash()) return;
+
+  let stored = null;
+  try { stored = await idbGet(); } catch(e) {}
+
+  // One-time migration: move any legacy localStorage copy into IndexedDB, then drop it.
+  if (!stored) {
+    let legacy = null;
+    try { legacy = localStorage.getItem('mf_dashboard_data'); } catch(e) {}
+    if (legacy) {
+      try { await idbSet(JSON.parse(legacy)); stored = await idbGet(); } catch(e) {}
+      try { localStorage.removeItem('mf_dashboard_data'); } catch(e) {}
+    }
+  }
+
+  if (stored) {
+    try { allData = normaliseData(stored); showDashboard(); } catch(e) {}
   }
 });
 
@@ -869,7 +941,9 @@ function normaliseData(raw) {
 function resetDashboard() {
   allData = null;
   isDemo = false;
-  localStorage.removeItem('mf_dashboard_data');
+  hideSaveNotice();
+  try { localStorage.removeItem('mf_dashboard_data'); } catch(e) {}
+  idbDelete().catch(() => {});
   document.title = 'My MotoFuel Dashboard';
   document.getElementById('import-screen').style.display = 'flex';
   document.getElementById('dashboard').style.display = 'none';
@@ -885,9 +959,7 @@ function resetDashboard() {
 
 // ── SHOW DASHBOARD ────────────────────────────────────────────────
 function showDashboard() {
-  if (!isDemo) {
-    try { localStorage.setItem('mf_dashboard_data', JSON.stringify(allData)); } catch(e) {}
-  }
+  saveDashboardData();
   document.getElementById('import-screen').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
   document.querySelector('nav').style.display = 'none';
