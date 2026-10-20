@@ -61,7 +61,7 @@ that browser's local storage and never uploaded.
 ### dashboard.html — My MotoFuel Dashboard
 Pure HTML + CSS + vanilla JavaScript + Chart.js + Leaflet. No frameworks, no server, no login.
 
-Data flow priority: URL hash > localStorage > import screen. `normaliseData()` ingests the
+Data flow priority: URL hash > saved data (IndexedDB) > import screen. `normaliseData()` ingests the
 app's export (single-bike `{bike, fillups, rides, …}` or multi-bike `{bikes:[…]}`) and computes
 per-fill-up stats (see Calculations).
 
@@ -121,7 +121,7 @@ Sidebar lists bikes (left-aligned) with tabs: Fuel, Rides, Consumables, Tires.
   = sum of all `total_cost` ÷ total_km.
 - **No tire-size correction** — the export doesn't contain the inputs, so the factor is 1.
 
-Privacy: Zero server, data never leaves browser, localStorage only.
+Privacy: Zero server, data never leaves the browser — the dataset lives in IndexedDB, settings in localStorage.
 
 ### dashboard-guide.html — How To Guide
 Three methods: One tap from app ("Open in Dashboard"), File import (📤 Export → JSON), and
@@ -132,8 +132,24 @@ Export all bikes (⚙️ Settings → Export data → JSON).
 (no implausible litres) and so the Reykjavík→Akureyri ride has a matching fill-up at Staðarskáli,
 giving the ride map a ⛽ marker and the fill-up list an entry.
 
-## localStorage keys
-- `mf_dashboard_data` — the imported dashboard dataset (not set in demo mode)
+## Storage
+The imported dataset lives in **IndexedDB** (DB `motofuel-dashboard`, store `kv`) — the all-bikes
+export can be 40–50 MB, far over Safari's ~5 MB localStorage quota. Two records:
+- `dashboard-data` — the normalised dataset, written after every (non-demo) import.
+- `meta` — a tiny `{ hasData, savedAt }` record written alongside the data. On load it's read
+  **first** (cheap) to decide restore vs import, before the large dataset is read. If `meta` is
+  missing but the data record exists (older saves), it's written and the save is treated as present.
+  Both records are cleared by Forget my data and Import new file.
+- One-time migration: any legacy `mf_dashboard_data` value in localStorage is moved into IndexedDB
+  on load, then that localStorage key is removed.
+
+First paint: an inline `<head>` script adds an **`mf-boot`** class to `<html>` (outside the demo);
+its CSS hides the import cards until the load logic picks the loading or import state, so the import
+screen never flashes while IndexedDB is read. A **10-second safety timeout** removes `mf-boot` so the
+page is never left blank if that logic fails. If saving fails (e.g. private browsing), a notice is
+shown rather than failing silently. If IndexedDB is unavailable, the import screen is shown.
+
+localStorage keys (settings only):
 - `mf-ride-order` — Rides sort preference (`newest` / `oldest`)
 - `mf-fuel-range` — Fuel range switch (`30` / `year` / `all`)
 
