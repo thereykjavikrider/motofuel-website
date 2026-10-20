@@ -61,6 +61,20 @@ nav {
   text-align: center;
 }
 
+/* Loading state shown (from the first paint) while saved data restores from IndexedDB. */
+#loading-screen {
+  display: none;
+  min-height: 100vh;
+  align-items: center; justify-content: center;
+  text-align: center;
+  padding: 2rem;
+  color: var(--muted);
+  font-family: 'Barlow', sans-serif;
+  font-size: 1.1rem;
+}
+html.restoring #import-screen { display: none; }
+html.restoring #loading-screen { display: flex; }
+
 .import-title {
   font-family: 'Barlow Condensed', sans-serif;
   font-size: clamp(2.5rem, 6vw, 5rem);
@@ -597,6 +611,17 @@ canvas { max-height: 250px; }
 </head>
 <body>
 
+<!-- Pre-paint: if saved data exists (and this isn't the demo), show the loading state from the
+     very first paint instead of the import screen, so there's no flash while IndexedDB restores. -->
+<script>
+try {
+  if (new URLSearchParams(location.search).get('demo') !== '1' &&
+      localStorage.getItem('mf-has-data') === '1') {
+    document.documentElement.classList.add('restoring');
+  }
+} catch (e) {}
+</script>
+
 <!-- NAV -->
 <nav>
   <div style="display:flex;align-items:center;">
@@ -644,6 +669,9 @@ canvas { max-height: 250px; }
 
   </div>
 </div>
+
+<!-- LOADING STATE (shown pre-paint while restoring saved data) -->
+<div id="loading-screen">Loading your bikes…</div>
 
 <!-- DASHBOARD -->
 <div id="dashboard">
@@ -759,7 +787,9 @@ function hideSaveNotice() {
 // Persist the current (non-demo) dataset to IndexedDB; never fail silently.
 function saveDashboardData() {
   if (isDemo || !allData) return;
-  idbSet(allData).then(hideSaveNotice).catch(showSaveNotice);
+  idbSet(allData)
+    .then(() => { hideSaveNotice(); try { localStorage.setItem('mf-has-data', '1'); } catch (e) {} })
+    .catch(() => { showSaveNotice(); try { localStorage.removeItem('mf-has-data'); } catch (e) {} });
 }
 
 function handleFile(file) {
@@ -836,6 +866,13 @@ window.addEventListener('load', async () => {
 
   if (stored) {
     try { allData = normaliseData(stored); showDashboard(); } catch(e) {}
+  }
+
+  // Nothing usable restored (e.g. the browser cleared IndexedDB): drop the stale flag and
+  // fall back to the import screen by removing the pre-paint loading state.
+  if (!allData) {
+    try { localStorage.removeItem('mf-has-data'); } catch(e) {}
+    document.documentElement.classList.remove('restoring');
   }
 });
 
@@ -942,6 +979,8 @@ function resetDashboard() {
   allData = null;
   isDemo = false;
   hideSaveNotice();
+  document.documentElement.classList.remove('restoring');
+  try { localStorage.removeItem('mf-has-data'); } catch(e) {}
   try { localStorage.removeItem('mf_dashboard_data'); } catch(e) {}
   idbDelete().catch(() => {});
   document.title = 'My MotoFuel Dashboard';
@@ -959,6 +998,7 @@ function resetDashboard() {
 
 // ── SHOW DASHBOARD ────────────────────────────────────────────────
 function showDashboard() {
+  document.documentElement.classList.remove('restoring');
   saveDashboardData();
   document.getElementById('import-screen').style.display = 'none';
   document.getElementById('dashboard').style.display = 'block';
